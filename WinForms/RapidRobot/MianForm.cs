@@ -113,12 +113,12 @@ namespace RapidRobot
 
         private void byNodeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            mRenderView.ViewContext.SetPickFilter((uint)(EnumShapeFilter.RootNode | EnumShapeFilter.VertexEdgeFace));
+            mRenderView.ViewContext.SetPickFilter(EnumShapeFilter.RootNode | EnumShapeFilter.VertexEdgeFace);
         }
 
         private void bySubNodeToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            mRenderView.ViewContext.SetPickFilter((uint)(EnumShapeFilter.LeafNode | EnumShapeFilter.VertexEdgeFace));
+            mRenderView.ViewContext.SetPickFilter(EnumShapeFilter.LeafNode | EnumShapeFilter.VertexEdgeFace);
         }
     }
 }

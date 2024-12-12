@@ -15,6 +15,7 @@ namespace RapidRobot
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             AnyCAD.Foundation.GlobalInstance.Initialize();
+            AnyCAD.Foundation.ExchangeInstance.Initialize();
             Application.Run(new MainForm());
             AnyCAD.Foundation.GlobalInstance.Destroy();
         }

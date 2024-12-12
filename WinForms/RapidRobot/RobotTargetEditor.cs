@@ -18,9 +18,9 @@ namespace Rapid.Robot
             mSolver.Initialize(mRobotArm);
         }
 
-        public override bool PreviewTransform(ViewContext ctx, Matrix4 trf)
+        public override bool PreviewTransform(ViewContext ctx, Matrix4d trf)
         {
-            if (!mSolver.MoveToFrame(trf.ToMatrix4d()))
+            if (!mSolver.MoveToFrame(trf))
                 return false;
 
 
