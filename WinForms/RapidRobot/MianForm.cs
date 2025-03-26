@@ -16,12 +16,17 @@ namespace RapidRobot
         {
             InitializeComponent();
             mRenderView = new RenderControl(this.panel1);
-
+            mRenderView.ViewerReady += MRenderView_ViewerReady;
             this.newToolStripMenuItem.Click += NewProject;
             this.openToolStripMenuItem.Click += OpenToolStripMenuItem_Click;
             this.indicatorToolStripMenuItem.Click += IndicatorToolStripMenuItem_Click;
             this.saveTemplateToolStripMenuItem.Click += SaveTemplateToolStripMenuItem_Click;
             this.showLinktoolStripMenuItem1.Click += ShowLinktoolStripMenuItem1_Click;
+        }
+
+        private void MRenderView_ViewerReady()
+        {
+
         }
 
         private void SaveTemplateToolStripMenuItem_Click(object sender, EventArgs e)

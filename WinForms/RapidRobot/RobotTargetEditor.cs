@@ -14,7 +14,7 @@ namespace Rapid.Robot
             SetWidgetCenter(0);
             mRobotArm = arm;
 
-            mSolver = IkSolverFactory.Instance().Create("LMA");
+            mSolver = IkSolver.Create("LMA");
             mSolver.Initialize(mRobotArm);
         }
 
@@ -23,10 +23,9 @@ namespace Rapid.Robot
             if (!mSolver.MoveToFrame(trf))
                 return false;
 
-
             for (uint ii = 0; ii < mRobotArm.GetJointCount(); ++ii)
             {
-                var v = mSolver.GetValue(ii) * 180 / Math.PI;
+                var v = mSolver.GetValue(ii+1) * 180 / Math.PI;
                 mRobotArm.SetValue(ii, v);
             }
 
