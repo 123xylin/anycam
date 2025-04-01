@@ -23,10 +23,10 @@ namespace Rapid.Robot
             if (!mSolver.MoveToFrame(trf))
                 return false;
 
-            for (uint ii = 0; ii < mRobotArm.GetJointCount(); ++ii)
+            for (uint ii = 1; ii < mRobotArm.GetJointCount(); ++ii)
             {
-                var v = mSolver.GetValue(ii+1) * 180 / Math.PI;
-                mRobotArm.SetValue(ii, v);
+                var v = mSolver.GetValue(ii) * 180 / Math.PI;
+                mRobotArm.SetValue(ii-1, v);
             }
 
             mRobotArm.UpdateFrames();
