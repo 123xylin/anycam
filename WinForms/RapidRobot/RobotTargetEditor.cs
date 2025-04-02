@@ -26,7 +26,7 @@ namespace Rapid.Robot
             for (uint ii = 1; ii < mRobotArm.GetJointCount(); ++ii)
             {
                 var v = mSolver.GetValue(ii) * 180 / Math.PI;
-                mRobotArm.SetValue(ii-1, v);
+                mRobotArm.SetValue(ii, v);
             }
 
             mRobotArm.UpdateFrames();

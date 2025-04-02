@@ -123,13 +123,13 @@ namespace RapidRobot
                 return;
 
 
-            solver.MoveToFrame(mSavedFrame);
+            if(solver.MoveToFrame(mSavedFrame))
             {
 
-                for(uint ii=0; ii < arm.GetJointCount(); ++ii)
+                for (uint ii = 1; ii < arm.GetJointCount(); ++ii)
                 {
-                    var v = solver.GetValue(ii);
-                    arm.SetValue(ii, v * 180/Math.PI);
+                    var v = solver.GetValue(ii) * 180 / Math.PI;
+                    arm.SetValue(ii, v);
                 }
 
                 mRobot.Robot.UpdateFrames();
