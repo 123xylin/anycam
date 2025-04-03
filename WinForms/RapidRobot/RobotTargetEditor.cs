@@ -8,7 +8,7 @@ namespace Rapid.Robot
         IkSolver mSolver;
         RobotArm mRobotArm;
         public RobotTargetEditor(AxWidget target, RobotArm arm)
-            : base(target, TransformWidget.Create(20), "Robot.MoveTarget")
+            : base(target, TransformWidget.Create(0.2f), "Robot.MoveTarget")
         {
 
             SetWidgetCenter(0);
