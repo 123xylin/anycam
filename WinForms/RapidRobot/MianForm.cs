@@ -26,7 +26,7 @@ namespace RapidRobot
 
         private void MRenderView_ViewerReady()
         {
-
+            mRenderView.SceneManager.SetViewScale(1);
         }
 
         private void SaveTemplateToolStripMenuItem_Click(object sender, EventArgs e)
