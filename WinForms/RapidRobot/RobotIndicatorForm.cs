@@ -1,4 +1,5 @@
 ﻿using AnyCAD.Foundation;
+using AnyCAD.Simulate;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;

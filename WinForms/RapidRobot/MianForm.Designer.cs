@@ -291,7 +291,7 @@
             MainMenuStrip = menuStrip1;
             Margin = new System.Windows.Forms.Padding(2);
             Name = "MainForm";
-            Text = "AnyRobot.NET 2024";
+            Text = "AnyRobot.NET 2026";
             Load += MainForm_Load;
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();

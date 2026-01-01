@@ -1,5 +1,6 @@
 ﻿
 using AnyCAD.Foundation;
+using AnyCAD.Simulate;
 
 namespace AnyCAD.Robot
 {
