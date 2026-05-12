@@ -4,7 +4,7 @@ using System;
 
 namespace Rapid.Robot
 {
-    internal class RobotTargetEditor : NodeFrameEidtor
+    internal class RobotTargetEditor : NodeFrameEditor
     {
         IkSolver mSolver;
         RobotArm mRobotArm;

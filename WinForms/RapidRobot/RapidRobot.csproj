@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net6.0-windows;net8.0-windows;net10.0-windows</TargetFrameworks>
+    <TargetFrameworks>net8.0-windows</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
@@ -16,8 +16,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-	<PackageReference Include="AnyCAD.Rapid.NET" Version="2026.1.1.1401" />
-    <PackageReference Include="AnyCAD.Simulate.NET" Version="2026.1.1.1401" />
+	<PackageReference Include="AnyCAD.Rapid.NET" Version="2026.4.23.1534" />
+    <PackageReference Include="AnyCAD.Simulate.NET" Version="2026.4.23.1534" />
   </ItemGroup>
 
 </Project>
