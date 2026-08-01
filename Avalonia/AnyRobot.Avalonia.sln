@@ -4,6 +4,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnyTube.NET", "AnyTube.NET\AnyTube.NET.csproj", "{9C0350D0-1C67-4F4B-B5A2-34DB305A8CE3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NCViewer.NET", "NCViewer.NET\NCViewer.NET.csproj", "{7B2A4E1D-3F5C-4A6B-9D8E-1C2F4A6B8D0E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{9C0350D0-1C67-4F4B-B5A2-34DB305A8CE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9C0350D0-1C67-4F4B-B5A2-34DB305A8CE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9C0350D0-1C67-4F4B-B5A2-34DB305A8CE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B2A4E1D-3F5C-4A6B-9D8E-1C2F4A6B8D0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B2A4E1D-3F5C-4A6B-9D8E-1C2F4A6B8D0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B2A4E1D-3F5C-4A6B-9D8E-1C2F4A6B8D0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B2A4E1D-3F5C-4A6B-9D8E-1C2F4A6B8D0E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

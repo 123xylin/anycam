@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:anycad="clr-namespace:AnyCAD.AvaloniaUI;assembly=AnyCAD.Avalonia.NET"
+        x:Class="NcViewerNet.MainWindow"
+        Title="NCViewer.NET"
+        Width="1280"
+        Height="760"
+        MinWidth="960"
+        MinHeight="560">
+
+  <Grid ColumnDefinitions="300, 3, *" Margin="7">
+    <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="16">
+        <StackPanel Spacing="10">
+          <TextBlock x:Name="FileNameText" Text="未导入文件" Foreground="#526071" TextWrapping="Wrap" />
+          <Grid ColumnDefinitions="*,8,*">
+            <Button x:Name="ImportButton"
+                    Grid.Column="0"
+                    Content="导入"
+                    Padding="12,8"
+                    Click="ImportButton_Click" />
+            <Button x:Name="SampleButton"
+                    Grid.Column="2"
+                    Content="示例"
+                    Padding="12,8"
+                    Click="SampleButton_Click" />
+          </Grid>
+          <TextBlock x:Name="ToolInfoText" Foreground="#526071" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Spacing="10">
+          <Grid ColumnDefinitions="*,8,*,8,*">
+            <Button x:Name="StartButton"
+                    Grid.Column="0"
+                    Content="开始"
+                    Padding="12,8"
+                    Click="StartButton_Click" />
+            <Button x:Name="PauseButton"
+                    Grid.Column="2"
+                    Content="暂停"
+                    Padding="12,8"
+                    Click="PauseButton_Click" />
+            <Button x:Name="StopButton"
+                    Grid.Column="4"
+                    Content="停止"
+                    Padding="12,8"
+                    Click="StopButton_Click" />
+          </Grid>
+          <TextBlock Text="速度" Foreground="#526071" />
+          <Slider x:Name="SpeedSlider" Minimum="0.1" Maximum="4" Value="1.0" TickFrequency="0.1" />
+          <Grid ColumnDefinitions="*,8,Auto">
+            <ProgressBar x:Name="ProgressBar" Grid.Column="0" Minimum="0" Maximum="100" Value="0" />
+            <TextBlock x:Name="ProgressText" Grid.Column="2" Text="0.0%" Foreground="#526071" />
+          </Grid>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" TextWrapping="Wrap" Foreground="#94A3B8" FontSize="11"
+                   Text="说明：红色为切削进给(G01)，蓝色为快速定位(G00)。动画默认 30 秒走完全程，可用速度滑块调节。" />
+    </Grid>
+
+    <GridSplitter Grid.Column="1" ResizeDirection="Columns" />
+    <anycad:RenderControl x:Name="RenderView" Grid.Column="2" ViewerReady="RenderView_ViewerReady" />
+  </Grid>
+</Window>
