@@ -1,0 +1,204 @@
+<?xml version="1.0"?>
+<robot name="shared_gantry_dual_6r">
+  <link name="base">
+    <visual name="base_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/base.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="base_material_0"><color rgba="0.48 0.51 0.56 1"/></material>
+    </visual>
+  </link>
+  <link name="carriage">
+    <visual name="carriage_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/carriage.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="carriage_material_0"><color rgba="0.3 0.72 0.42 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link1">
+    <visual name="arm0_link1_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link1_material_0"><color rgba="0.98 0.44 0.1 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link2">
+    <visual name="arm0_link2_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link2_material_0"><color rgba="0.95 0.52 0.12 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link3">
+    <visual name="arm0_link3_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link3_material_0"><color rgba="0.92 0.6 0.16 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link4">
+    <visual name="arm0_link4_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link4_material_0"><color rgba="0.88 0.4 0.08 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link5">
+    <visual name="arm0_link5_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link5_material_0"><color rgba="0.96 0.66 0.2 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link6">
+    <visual name="arm0_link6_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/wrist_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link6_material_0"><color rgba="0.84 0.32 0.06 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link1">
+    <visual name="arm1_link1_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link1_material_0"><color rgba="0.08 0.46 0.96 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link2">
+    <visual name="arm1_link2_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link2_material_0"><color rgba="0.1 0.56 0.94 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link3">
+    <visual name="arm1_link3_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link3_material_0"><color rgba="0.14 0.66 0.92 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link4">
+    <visual name="arm1_link4_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link4_material_0"><color rgba="0.06 0.4 0.84 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link5">
+    <visual name="arm1_link5_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/arm_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link5_material_0"><color rgba="0.18 0.72 0.96 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link6">
+    <visual name="arm1_link6_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/wrist_link.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link6_material_0"><color rgba="0.04 0.34 0.76 1"/></material>
+    </visual>
+  </link>
+  <joint name="gantry" type="prismatic">
+    <parent link="base"/>
+    <child link="carriage"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.25" upper="0.25" effort="0" velocity="0.18"/>
+  </joint>
+  <joint name="arm0_joint1" type="revolute">
+    <parent link="carriage"/>
+    <child link="arm0_link1"/>
+    <origin xyz="-0.2 -0.3 0.08" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="1.5"/>
+  </joint>
+  <joint name="arm0_joint2" type="revolute">
+    <parent link="arm0_link1"/>
+    <child link="arm0_link2"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.4" upper="2.4" effort="0" velocity="1.5"/>
+  </joint>
+  <joint name="arm0_joint3" type="revolute">
+    <parent link="arm0_link2"/>
+    <child link="arm0_link3"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.7" upper="2.7" effort="0" velocity="1.8"/>
+  </joint>
+  <joint name="arm0_joint4" type="revolute">
+    <parent link="arm0_link3"/>
+    <child link="arm0_link4"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="2"/>
+  </joint>
+  <joint name="arm0_joint5" type="revolute">
+    <parent link="arm0_link4"/>
+    <child link="arm0_link5"/>
+    <origin xyz="0.14 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.7" upper="2.7" effort="0" velocity="2"/>
+  </joint>
+  <joint name="arm0_joint6" type="revolute">
+    <parent link="arm0_link5"/>
+    <child link="arm0_link6"/>
+    <origin xyz="0.12 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="2.2"/>
+  </joint>
+  <joint name="arm1_joint1" type="revolute">
+    <parent link="carriage"/>
+    <child link="arm1_link1"/>
+    <origin xyz="-0.2 0.3 0.08" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="1.5"/>
+  </joint>
+  <joint name="arm1_joint2" type="revolute">
+    <parent link="arm1_link1"/>
+    <child link="arm1_link2"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.4" upper="2.4" effort="0" velocity="1.5"/>
+  </joint>
+  <joint name="arm1_joint3" type="revolute">
+    <parent link="arm1_link2"/>
+    <child link="arm1_link3"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.7" upper="2.7" effort="0" velocity="1.8"/>
+  </joint>
+  <joint name="arm1_joint4" type="revolute">
+    <parent link="arm1_link3"/>
+    <child link="arm1_link4"/>
+    <origin xyz="0.18 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="2"/>
+  </joint>
+  <joint name="arm1_joint5" type="revolute">
+    <parent link="arm1_link4"/>
+    <child link="arm1_link5"/>
+    <origin xyz="0.14 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.7" upper="2.7" effort="0" velocity="2"/>
+  </joint>
+  <joint name="arm1_joint6" type="revolute">
+    <parent link="arm1_link5"/>
+    <child link="arm1_link6"/>
+    <origin xyz="0.12 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-3.14159265358979" upper="3.14159265358979" effort="0" velocity="2.2"/>
+  </joint>
+  <link name="flange0"/>
+  <joint name="flange0_fixed_joint" type="fixed">
+    <parent link="arm0_link6"/>
+    <child link="flange0"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+  <link name="flange1"/>
+  <joint name="flange1_fixed_joint" type="fixed">
+    <parent link="arm1_link6"/>
+    <child link="flange1"/>
+    <origin xyz="0.1 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>
