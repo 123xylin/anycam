@@ -1,0 +1,100 @@
+<?xml version="1.0"?>
+<robot name="Kr500">
+  <link name="Base">
+    <visual name="Base_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="BASE.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="Base_material_0"><color rgba="0.0392156862745098 0.0392156862745098 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS1">
+    <visual name="AXIS1_visual_0">
+      <origin xyz="0 0 -1.045" rpy="0 0 0"/>
+      <geometry><mesh filename="JOINT1.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS1_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS2">
+    <visual name="AXIS2_visual_0">
+      <origin xyz="-0.5 1.045 0" rpy="1.5707963267949 0 0"/>
+      <geometry><mesh filename="JOINT2.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS2_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS3">
+    <visual name="AXIS3_visual_0">
+      <origin xyz="-1.045 -1.8 0" rpy="1.5707963267949 0 1.5707963267949"/>
+      <geometry><mesh filename="JOINT3.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS3_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS4">
+    <visual name="AXIS4_visual_0">
+      <origin xyz="-1.1 0 2.825" rpy="0 1.5707963267949 0"/>
+      <geometry><mesh filename="JOINT4.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS4_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS5">
+    <visual name="AXIS5_visual_0">
+      <origin xyz="-1.1 -2.825 0" rpy="1.5707963267949 0 1.5707963267949"/>
+      <geometry><mesh filename="JOINT5.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS5_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="AXIS6">
+    <visual name="AXIS6_visual_0">
+      <origin xyz="-1.1 0 -3.115" rpy="3.14159265358979 -1.5707963267949 0"/>
+      <geometry><mesh filename="JOINT6.STL" scale="0.001 0.001 0.001"/></geometry>
+      <material name="AXIS6_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <joint name="AXIS1" type="revolute">
+    <parent link="Base"/>
+    <child link="AXIS1"/>
+    <origin xyz="0 0 1.045" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <joint name="AXIS2" type="revolute">
+    <parent link="AXIS1"/>
+    <child link="AXIS2"/>
+    <origin xyz="0.5 0 0" rpy="-1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <joint name="AXIS3" type="revolute">
+    <parent link="AXIS2"/>
+    <child link="AXIS3"/>
+    <origin xyz="1.3 0 0" rpy="0 0 -1.5707963267949"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <joint name="AXIS4" type="revolute">
+    <parent link="AXIS3"/>
+    <child link="AXIS4"/>
+    <origin xyz="0.055 1.025 0" rpy="1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <joint name="AXIS5" type="revolute">
+    <parent link="AXIS4"/>
+    <child link="AXIS5"/>
+    <origin xyz="0 0 0" rpy="-1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <joint name="AXIS6" type="revolute">
+    <parent link="AXIS5"/>
+    <child link="AXIS6"/>
+    <origin xyz="0 0.29 0" rpy="-1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-6.10865238198015" upper="6.10865238198015" effort="0" velocity="3.49065850398866"/>
+  </joint>
+  <link name="Kr500_flange"/>
+  <joint name="Kr500_flange_fixed_joint" type="fixed">
+    <parent link="AXIS6"/>
+    <child link="Kr500_flange"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>
