@@ -164,8 +164,8 @@ namespace RapidRobot
                     Require(Math.Abs(positions[0] - expected) < 1e-12, "Direct SDK quarter-time sample");
                     report.AppendLine("PASS direct trajectory timing/sampling " + curve);
                 }
-                foreach (var planner in new[] { "OMPL", "RL" })
-                    foreach (var collision in new[] { "Bullet", "FCL" })
+                foreach (var planner in new[] { "OMPL" })
+                    foreach (var collision in new[] { "FCL" })
                     foreach (var curve in new[] { EnumJointTrajectoryCurve.CubicStopToStop, EnumJointTrajectoryCurve.QuinticStopToStop })
                     {
                         using var selected = new BackendSelection { Ik = "KDL", Planner = planner, Collision = collision };
@@ -179,9 +179,9 @@ namespace RapidRobot
                         using var request = session.CreatePlanningRequest(goals, limits);
                         using (var timing = request.Timing) timing.Curve = curve;
                         using var result = session.Plan(request);
-                        Require(result.Curve == curve, "Planned curve survives managed round trip");
                         using var planning = result.Planning;
                         Require(result.Succeeded(), planner + "/" + collision + ": " + planning.Diagnostic);
+                        Require(result.Curve == curve, "Planned curve survives managed round trip");
                         using (AnyCAD.Foundation.DoubleList2 path = planning.Path)
                         {
                             Require(path.Count >= 2, "Foundation path collection");

@@ -19,6 +19,8 @@ namespace RapidRobot
         private RobotIndicatorForm mIndicatorUI;
         private bool mShowLinks = true;
         private SimulationSdkForm mSimulationSdk;
+        private CollisionDemoForm mCollisionDemo;
+        private string mRobotUrdfFile;
 
         public MainForm()
         {
@@ -32,6 +34,25 @@ namespace RapidRobot
                 mSimulationSdk.Show(this);
             };
             menuStrip1.Items.Add(sdkMenu);
+            var collisionMenu = new ToolStripMenuItem("Collision demo");
+            collisionMenu.Click += (_, _) =>
+            {
+                if (mRobotControler == null || mRobotUrdfFile == null) return;
+                if (mCollisionDemo != null && !mCollisionDemo.IsDisposed)
+                {
+                    mCollisionDemo.Activate();
+                    return;
+                }
+                mCollisionDemo = new CollisionDemoForm(
+                    mRobotControler.Robot, mRobotUrdfFile, OnRobotModelChanged);
+                mRenderView.ShowSceneNode(mCollisionDemo.PreviewRoot);
+                mCollisionDemo.FormClosed += (_, _) => {
+                    mRenderView.RemoveSceneNode(mCollisionDemo.PreviewRoot.GetUuid());
+                    mCollisionDemo = null;
+                };
+                mCollisionDemo.Show(this);
+            };
+            menuStrip1.Items.Add(collisionMenu);
             mRenderView = new RenderControl(panel1);
             mRenderView.ViewerReady += MRenderView_ViewerReady;
             newToolStripMenuItem.Click += NewProject;
@@ -64,6 +85,9 @@ namespace RapidRobot
         {
             mSimulationSdk?.Close();
             mSimulationSdk = null;
+            mCollisionDemo?.Close();
+            mCollisionDemo = null;
+            mRobotUrdfFile = null;
             if (mRobotControler != null)
             {
                 mRobotControler.ModelChanged -= OnRobotModelChanged;
@@ -81,6 +105,7 @@ namespace RapidRobot
 
         private void OnRobotModelChanged()
         {
+            mCollisionDemo?.UpdateLinkTransforms();
             mRenderView.RequestDraw(EnumUpdateFlags.Scene);
         }
 
@@ -141,6 +166,7 @@ namespace RapidRobot
             mRenderView.ShowSceneNode(robot);
 
             mRobotControler = new AnyCAD.Robot.RobotControler(robot);
+            mRobotUrdfFile = dialog.FileName;
             mRobotControler.ModelChanged += OnRobotModelChanged;
             mRobotControler.SelectedArmChanged += ResetIkTargetToSelectedArm;
             mRenderView.ShowSceneNode(mRobotControler.Trajectory);
