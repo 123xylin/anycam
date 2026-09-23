@@ -1,4 +1,4 @@
-﻿using AnyCAD.Foundation;
+using AnyCAD.Foundation;
 using AnyCAD.Simulate;
 using System;
 using System.Drawing;
@@ -106,7 +106,7 @@ namespace RapidRobot
                 if (string.IsNullOrWhiteSpace(name))
                     name = $"Joint {pathOffset}";
 
-                var unit = type == EnumRobotJointType.Revolute ? "deg" :
+                var unit = type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous ? "deg" :
                     type == EnumRobotJointType.Prismatic ? "mm" : string.Empty;
                 var rowIndex = mJointGrid.Rows.Add(pathOffset, name, type, string.Empty, unit,
                     type == EnumRobotJointType.Fixed ? "—" : "-",
@@ -128,7 +128,7 @@ namespace RapidRobot
                 return;
 
             var step = (double)numericUpDownSpeed.Value;
-            if (type == EnumRobotJointType.Revolute)
+            if (type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous)
                 step *= Math.PI / 180.0;
             if (e.ColumnIndex == 5)
                 step = -step;
@@ -158,7 +158,7 @@ namespace RapidRobot
             {
                 var type = mRobot.GetJointType(armIndex, pathOffset);
                 var value = mRobot.GetJointPosition(armIndex, pathOffset);
-                if (type == EnumRobotJointType.Revolute)
+                if (type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous)
                     value *= 180.0 / Math.PI;
                 mJointGrid.Rows[(int)pathOffset].Cells[3].Value = double.IsFinite(value) ? $"{value:N3}" : "—";
             }
