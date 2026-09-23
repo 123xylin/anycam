@@ -1,4 +1,4 @@
-﻿using AnyCAD.Foundation;
+using AnyCAD.Foundation;
 using AnyCAD.Simulate;
 using System;
 
@@ -91,13 +91,18 @@ namespace AnyCAD.Robot
                 return false;
 
             var value = GetJointPosition(armIndex, pathOffset);
-            var minValue = GetJointMinValue(armIndex, pathOffset);
-            var maxValue = GetJointMaxValue(armIndex, pathOffset);
-            if (!double.IsFinite(value) || !double.IsFinite(step) ||
-                !double.IsFinite(minValue) || !double.IsFinite(maxValue))
+            if (!double.IsFinite(value) || !double.IsFinite(step))
                 return false;
 
-            value = Math.Clamp(value + step, minValue, maxValue);
+            value += step;
+            if (GetJointType(armIndex, pathOffset) != EnumRobotJointType.Continuous)
+            {
+                var minValue = GetJointMinValue(armIndex, pathOffset);
+                var maxValue = GetJointMaxValue(armIndex, pathOffset);
+                if (!double.IsFinite(minValue) || !double.IsFinite(maxValue))
+                    return false;
+                value = Math.Clamp(value, minValue, maxValue);
+            }
             using var index = new RobotArmIndex(armIndex);
             if (!mRobot.SetArmJointPosition(index, pathOffset, value))
                 return false;
@@ -127,26 +132,46 @@ namespace AnyCAD.Robot
             if (arm == null)
                 return false;
 
-            using var baseLinkIndex = arm.GetBaseLinkIndex();
-            if (!baseLinkIndex.IsValid())
+            using var tipFrameIndex = arm.GetTipFrameIndex();
+            if (!tipFrameIndex.IsValid())
                 return false;
 
-            using var baseWorld = mRobot.GetLinkTransform(baseLinkIndex, true);
-            using var baseWorldInverse = baseWorld.inversed();
-            using var targetInBase = baseWorldInverse.multiplied(targetWorld);
-            using var request = new RobotSingleTipIkRequest
+            using var model = mRobot.GetModel();
+            using var rootLinkIndex = model.GetRootLinkIndex();
+            if (!rootLinkIndex.IsValid())
+                return false;
+
+            using var rootWorld = mRobot.GetLinkTransform(rootLinkIndex, true);
+            using var rootWorldInverse = rootWorld.inversed();
+            using var targetInBody = rootWorldInverse.multiplied(targetWorld);
+            using var target = new RobotSimulationTarget
             {
-                Body = mRobot,
-                ArmIndex = armIndex,
-                TargetInBase = targetInBase
+                FrameIndex = tipFrameIndex,
+                TargetInBody = targetInBody
             };
-            using var solver = new RobotSingleTipIkSolver();
-            using var result = solver.Solve(request);
+            using var targets = new RobotSimulationTargetList();
+            targets.Add(target);
+            using var session = new RobotSimulationSession(mRobot);
+            using var result = session.SolveIk(targets);
             if (result == null || !result.IsSuccess())
                 return false;
 
-            using var positions = result.JointPositions;
-            using var sourceState = result.SourceState;
+            using var positions = new RobotJointPositionList();
+            using (var solvedPositions = result.JointPositions)
+            {
+                for (var i = 0; i < solvedPositions.Count; ++i)
+                {
+                    using var solved = solvedPositions[i];
+                    using var jointIndex = new RobotJointIndex(solved.JointIndex);
+                    using var position = new RobotJointPosition
+                    {
+                        JointIndex = jointIndex,
+                        Position = solved.Position
+                    };
+                    positions.Add(position);
+                }
+            }
+            using var sourceState = session.GetSourceState();
             if (mRobot.ApplyJointPositions(positions, sourceState) != EnumRobotJointApplyStatus.Success)
                 return false;
 

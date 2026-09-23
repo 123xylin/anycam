@@ -1,4 +1,4 @@
-﻿using AnyCAD.Forms;
+using AnyCAD.Forms;
 using AnyCAD.Foundation;
 using AnyCAD.Robot;
 using AnyCAD.Simulate;
@@ -18,10 +18,20 @@ namespace RapidRobot
         private RobotTargetEditor mIkEditor;
         private RobotIndicatorForm mIndicatorUI;
         private bool mShowLinks = true;
+        private SimulationSdkForm mSimulationSdk;
 
         public MainForm()
         {
             InitializeComponent();
+            var sdkMenu = new ToolStripMenuItem("Simulate SDK");
+            sdkMenu.Click += (_, _) =>
+            {
+                if (mRobotControler == null) return;
+                mSimulationSdk?.Close();
+                mSimulationSdk = new SimulationSdkForm(mRobotControler.Robot, OnRobotModelChanged);
+                mSimulationSdk.Show(this);
+            };
+            menuStrip1.Items.Add(sdkMenu);
             mRenderView = new RenderControl(panel1);
             mRenderView.ViewerReady += MRenderView_ViewerReady;
             newToolStripMenuItem.Click += NewProject;
@@ -52,6 +62,8 @@ namespace RapidRobot
 
         private void ReleaseRobotUi()
         {
+            mSimulationSdk?.Close();
+            mSimulationSdk = null;
             if (mRobotControler != null)
             {
                 mRobotControler.ModelChanged -= OnRobotModelChanged;
