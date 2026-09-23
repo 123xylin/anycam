@@ -219,6 +219,15 @@ namespace RapidRobot
                             Check(pathPoints.Count > 2, "Obstacle must force a detour");
                             int samples = CheckPathSamples(robotSession, demo, pathPoints,
                                 tipGoals, tipLimits);
+                            using var player = new RobotTrajectoryPlayer();
+                            Check(player.Load(body, tipResult), "Kr500 trajectory load: " +
+                                player.GetDiagnostic());
+                            Check(player.Play(), "Kr500 trajectory play");
+                            Check(player.Tick(player.GetDuration() / 2),
+                                "Kr500 trajectory midpoint playback");
+                            player.Pause();
+                            Check(player.Seek(player.GetDuration()), "Kr500 trajectory seek");
+                            Check(player.Stop(), "Kr500 trajectory stop");
                             report.AppendLine("PASS Kr500 tip IK and collision-free detour, " +
                                 pathPoints.Count + " waypoints, " + samples + " sampled states");
                         }
@@ -252,6 +261,9 @@ namespace RapidRobot
                 using (var scene = request.CollisionScene)
                 using (var bodies = scene.Bodies)
                     Check(bodies.Count == 3, "Removed environment body");
+                var reloaded = new CollisionDemoModel(body, false);
+                Check(reloaded.LinkHulls.Count == 0 && reloaded.Obstacles.Count == 0,
+                    "New robot session clears collision edits");
                 report.AppendLine("PASS collision scene bindings, obstacle edit, adjacent exemption");
                 File.WriteAllText(reportPath, report.ToString());
                 return 0;
