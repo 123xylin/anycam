@@ -204,7 +204,7 @@ using var plot = Matplot.Create("measurements");
 
 ## 12. 本地 SDK 差异、校验方式与限制
 
-本手册正文仅使用正式 `2026.9.22.1736` 程序集。`../platform` 的后续源码和 `2026.9.23.1213` **本地离线包**另有 `SimulateInstance.Initialize(): bool`、`GetInitializationDiagnostic()`，以及后续 .NET Host、插件加载、渲染和 SWIG 构建调整；这些都不能直接写进正式包示例。`dev` 才固定本地版本；其初始化配置未随 RapidRobot 输出，调用会给出失败诊断，而显式加载 Plan/FCL 后仍可运行已验证的机器人示例。完整提交时间线见 [RapidRobot 开发手册](RapidRobot-开发手册.md#9-sdk-包时间线与分支)。
+本手册正文仅使用正式 `2026.9.22.1736` 程序集。`../platform` 的后续源码和 `2026.9.23.1213` **本地离线包**另有 `SimulateInstance.Initialize(): bool`、`GetInitializationDiagnostic()`，以及后续 .NET Host、插件加载、渲染和 SWIG 构建调整；这些都不能直接写进正式包示例。`dev` 才固定本地版本并适配初始化差异。完整提交时间线见 [RapidRobot 开发手册](RapidRobot-开发手册.md#9-sdk-包时间线与分支)。
 
 附录从实际 NuGet 包 `lib/net80/AnyCAD.Simulate.NET.dll` 反射得到 **180 个公开类型**，按字母排列，包括集合/枚举器；每项列出公开构造、属性与非样板方法，并标注所属功能章节。包内 XML 是另一份交叉检查材料，主要记录 SWIG 包装说明，条目不覆盖全部公开成员；缺少 XML 条目不能说明成员不存在。省略自动的 `get_/set_` 访问器、`getCPtr/swigRelease` 和通用 `Dispose` 的逐条重复：属性已列出读写入口，所有持有原生资源的包装对象按 `IDisposable` 处理。某些类型或方法虽在程序集公开，但仍可能需要插件、许可、Viewer 或 Document；该事实已在相应章节标明。实际可运行验证范围是 RapidRobot 的 FK、V-HACD、IK、OMPL/FCL、轨迹与 Kr500；制造、部分动画、绘图及 Document 碰撞目前只做签名核对，不宣称运行通过。
 
