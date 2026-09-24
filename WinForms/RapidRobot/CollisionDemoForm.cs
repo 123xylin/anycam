@@ -64,7 +64,7 @@ namespace RapidRobot
                 AutoSize = true, Text = "Link V-HACD • scene entities • collision exclusions • tip planning"
             });
 
-            var linkBox = Section("1. Link convex hulls (AnyDesigner Quick preset)");
+            var linkBox = Section("1. Link convex hulls");
             var linkRow = Row(linkBox);
             linkRow.Controls.Add(links);
             Button(linkRow, "Generate / regenerate", async (_, _) => await Generate());
