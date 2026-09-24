@@ -21,7 +21,8 @@ namespace RapidRobot
         }
 
         private readonly RobotBody body;
-        private readonly string urdfFile;
+        private readonly Func<string, CollisionTriangleMesh> loadLinkMesh;
+        private readonly bool isKr500;
         private readonly Action redraw;
         private readonly CollisionDemoModel model;
         private readonly BackendSelection backends = SimulationBackends.GetDefaults();
@@ -45,10 +46,12 @@ namespace RapidRobot
 
         internal GroupSceneNode PreviewRoot => model.PreviewRoot;
 
-        internal CollisionDemoForm(RobotBody body, string urdfFile, Action redraw)
+        internal CollisionDemoForm(RobotBody body,
+            Func<string, CollisionTriangleMesh> loadLinkMesh, bool isKr500, Action redraw)
         {
             this.body = body;
-            this.urdfFile = urdfFile;
+            this.loadLinkMesh = loadLinkMesh;
+            this.isKr500 = isKr500;
             this.redraw = redraw;
             if (IsKr500()) SetKr500DemoPose();
             model = new CollisionDemoModel(body);
@@ -207,9 +210,7 @@ namespace RapidRobot
             redraw();
         }
 
-        private bool IsKr500() => System.IO.Path.GetFileName(
-            System.IO.Path.GetDirectoryName(urdfFile))
-            .Equals("Kr500", StringComparison.OrdinalIgnoreCase);
+        private bool IsKr500() => isKr500;
 
         private void SetKr500DemoPose()
         {
@@ -257,7 +258,7 @@ namespace RapidRobot
             try
             {
                 uint linkIndex = (uint)(choice.Id - 1);
-                using var mesh = UrdfVisualMesh.Load(urdfFile, choice.Name);
+                using var mesh = loadLinkMesh(choice.Name);
                 using var options = new VhacdOptions {
                     MaxConvexHulls = 8, Resolution = 100000,
                     MinimumVolumePercentErrorAllowed = 2.5,
