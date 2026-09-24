@@ -1,40 +1,25 @@
 ﻿using AnyCAD.Foundation;
-using AnyCAD.Simulate;
-using System;
 
 namespace Rapid.Robot
 {
     internal class RobotTargetEditor : NodeFrameEditor
     {
-        IkSolver mSolver;
-        RobotArm mRobotArm;
-        public RobotTargetEditor(AxWidget target, RobotArm arm)
+        private readonly AnyCAD.Robot.RobotControler mRobot;
+
+        public RobotTargetEditor(SceneNode target, AnyCAD.Robot.RobotControler robot)
             : base(target, TransformWidget.Create(20.0f), "Robot.MoveTarget")
         {
-
+            mRobot = robot;
             SetWidgetCenter(0);
-            mRobotArm = arm;
-
-            mSolver = IkSolver.Create("LMA");
-            mSolver.Initialize(mRobotArm);
         }
 
-        public override bool PreviewTransform(ViewContext ctx, Matrix4d trf)
+        public override bool PreviewTransform(ViewContext ctx, Matrix4d transform)
         {
-            if (!mSolver.MoveToFrame(trf))
+            if (!mRobot.TryMoveSelectedArmTip(transform))
                 return false;
 
-            for (uint ii = 1; ii < mRobotArm.GetJointCount(); ++ii)
-            {
-                var v = mSolver.GetValue(ii) * 180 / Math.PI;
-                mRobotArm.SetValue(ii, v);
-            }
-
-            mRobotArm.UpdateFrames();
-
             ctx.RequestUpdate(EnumUpdateFlags.Scene);
-
-            return base.PreviewTransform(ctx, trf);
+            return base.PreviewTransform(ctx, transform);
         }
     }
 }

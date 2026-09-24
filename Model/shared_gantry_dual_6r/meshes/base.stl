@@ -1,0 +1,86 @@
+solid shared_gantry_base
+  facet normal 0 0 -1
+    outer loop
+      vertex -400 -500 -30
+      vertex 400 500 -30
+      vertex 400 -500 -30
+    endloop
+  endfacet
+  facet normal 0 0 -1
+    outer loop
+      vertex -400 -500 -30
+      vertex -400 500 -30
+      vertex 400 500 -30
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -400 -500 30
+      vertex 400 -500 30
+      vertex 400 500 30
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex -400 -500 30
+      vertex 400 500 30
+      vertex -400 500 30
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex -400 -500 -30
+      vertex 400 -500 -30
+      vertex 400 -500 30
+    endloop
+  endfacet
+  facet normal 0 -1 0
+    outer loop
+      vertex -400 -500 -30
+      vertex 400 -500 30
+      vertex -400 -500 30
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex -400 500 -30
+      vertex 400 500 30
+      vertex 400 500 -30
+    endloop
+  endfacet
+  facet normal 0 1 0
+    outer loop
+      vertex -400 500 -30
+      vertex -400 500 30
+      vertex 400 500 30
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex -400 -500 -30
+      vertex -400 -500 30
+      vertex -400 500 30
+    endloop
+  endfacet
+  facet normal -1 0 0
+    outer loop
+      vertex -400 -500 -30
+      vertex -400 500 30
+      vertex -400 500 -30
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 400 -500 -30
+      vertex 400 500 -30
+      vertex 400 500 30
+    endloop
+  endfacet
+  facet normal 1 0 0
+    outer loop
+      vertex 400 -500 -30
+      vertex 400 500 30
+      vertex 400 -500 30
+    endloop
+  endfacet
+endsolid shared_gantry_base

@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<robot name="XYZ">
+  <link name="CS">
+    <visual name="CS_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="0.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="CS_material_0"><color rgba="0.0392156862745098 0.0392156862745098 0 1"/></material>
+    </visual>
+  </link>
+  <link name="Y">
+    <visual name="Y_visual_0">
+      <origin xyz="0 0 -0.299" rpy="1.5707963267949 0 0"/>
+      <geometry><mesh filename="1.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="Y_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="X">
+    <visual name="X_visual_0">
+      <origin xyz="-0.299 0 -0.457" rpy="0 0 -1.5707963267949"/>
+      <geometry><mesh filename="2.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="X_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="A">
+    <visual name="A_visual_0">
+      <origin xyz="-0.191 -0.457 -0.244" rpy="-1.5707963267949 -1.5707963267949 0"/>
+      <geometry><mesh filename="3.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="A_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <link name="T">
+    <visual name="T_visual_0">
+      <origin xyz="-0.032 -0.244 0.457" rpy="3.14159265358979 0 1.5707963267949"/>
+      <geometry><mesh filename="4.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="T_material_0"><color rgba="1 1 0 1"/></material>
+    </visual>
+  </link>
+  <joint name="Y" type="prismatic">
+    <parent link="CS"/>
+    <child link="Y"/>
+    <origin xyz="0 0.299 0" rpy="-1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.35" upper="0.35" effort="0" velocity="0.2"/>
+  </joint>
+  <joint name="X" type="prismatic">
+    <parent link="Y"/>
+    <child link="X"/>
+    <origin xyz="0 -0.457 0" rpy="1.5707963267949 -1.5707963267949 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.35" upper="0.35" effort="0" velocity="0.2"/>
+  </joint>
+  <joint name="A" type="prismatic">
+    <parent link="X"/>
+    <child link="A"/>
+    <origin xyz="-0.108 -0.244 0" rpy="1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.35" upper="0.35" effort="0" velocity="0.2"/>
+  </joint>
+  <joint name="T" type="prismatic">
+    <parent link="A"/>
+    <child link="T"/>
+    <origin xyz="-0.159 0 0" rpy="1.5707963267949 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.35" upper="0.35" effort="0" velocity="0.2"/>
+  </joint>
+  <link name="T_tip"/>
+  <joint name="T_tip_fixed_joint" type="fixed">
+    <parent link="T"/>
+    <child link="T_tip"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>

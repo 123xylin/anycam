@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot name="dual_slide">
+  <link name="base">
+    <visual name="base_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/base.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="base_material_0"><color rgba="0.55 0.58 0.62 1"/></material>
+    </visual>
+  </link>
+  <link name="arm0_link">
+    <visual name="arm0_link_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/slider.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm0_link_material_0"><color rgba="0.95 0.48 0.12 1"/></material>
+    </visual>
+  </link>
+  <link name="arm1_link">
+    <visual name="arm1_link_visual_0">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><mesh filename="meshes/slider.stl" scale="0.001 0.001 0.001"/></geometry>
+      <material name="arm1_link_material_0"><color rgba="0.12 0.52 0.95 1"/></material>
+    </visual>
+  </link>
+  <joint name="slide0" type="prismatic">
+    <parent link="base"/>
+    <child link="arm0_link"/>
+    <origin xyz="-0.18 -0.15 0.06" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.15" upper="0.15" effort="0" velocity="0.1"/>
+  </joint>
+  <joint name="slide1" type="prismatic">
+    <parent link="base"/>
+    <child link="arm1_link"/>
+    <origin xyz="-0.18 0.15 0.06" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-0.15" upper="0.15" effort="0" velocity="0.1"/>
+  </joint>
+  <link name="flange0"/>
+  <joint name="flange0_fixed_joint" type="fixed">
+    <parent link="arm0_link"/>
+    <child link="flange0"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+  </joint>
+  <link name="flange1"/>
+  <joint name="flange1_fixed_joint" type="fixed">
+    <parent link="arm1_link"/>
+    <child link="flange1"/>
+    <origin xyz="0.08 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>
