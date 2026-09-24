@@ -20,11 +20,18 @@ namespace RapidRobot
         private bool mShowLinks = true;
         private SimulationSdkForm mSimulationSdk;
         private CollisionDemoForm mCollisionDemo;
-        private string mRobotUrdfFile;
+        private Func<string, CollisionTriangleMesh> mLoadLinkMesh;
 
         public MainForm()
         {
             InitializeComponent();
+            var importButton = new ToolStripButton("导入 URDF");
+            importButton.Click += OpenToolStripMenuItem_Click;
+            var manualButton = new ToolStripDropDownButton("代码装配");
+            manualButton.DropDownItems.Add("Kr500（STL）", null, CreateManualKr500_Click);
+            manualButton.DropDownItems.Add("3A（BREP）", null, CreateManual3A_Click);
+            menuStrip1.Items.Insert(0, importButton);
+            menuStrip1.Items.Insert(1, manualButton);
             var sdkMenu = new ToolStripMenuItem("Simulate SDK");
             sdkMenu.Click += (_, _) =>
             {
@@ -37,18 +44,19 @@ namespace RapidRobot
             var collisionMenu = new ToolStripMenuItem("Collision demo");
             collisionMenu.Click += (_, _) =>
             {
-                if (mRobotControler == null || mRobotUrdfFile == null) return;
+                if (mRobotControler == null || mLoadLinkMesh == null) return;
                 if (mCollisionDemo != null && !mCollisionDemo.IsDisposed)
                 {
                     mCollisionDemo.Activate();
                     return;
                 }
                 mCollisionDemo = new CollisionDemoForm(
-                    mRobotControler.Robot, mRobotUrdfFile, OnRobotModelChanged);
-                mRenderView.ShowSceneNode(mCollisionDemo.PreviewRoot);
+                    mRobotControler.Robot, mLoadLinkMesh, OnRobotModelChanged);
+                var form = mCollisionDemo;
+                mRenderView.ShowSceneNode(form.PreviewRoot);
                 mCollisionDemo.FormClosed += (_, _) => {
-                    mRenderView.RemoveSceneNode(mCollisionDemo.PreviewRoot.GetUuid());
-                    mCollisionDemo = null;
+                    mRenderView.RemoveSceneNode(form.PreviewRoot.GetUuid());
+                    if (ReferenceEquals(mCollisionDemo, form)) mCollisionDemo = null;
                 };
                 mCollisionDemo.Show(this);
             };
@@ -87,7 +95,7 @@ namespace RapidRobot
             mSimulationSdk = null;
             mCollisionDemo?.Close();
             mCollisionDemo = null;
-            mRobotUrdfFile = null;
+            mLoadLinkMesh = null;
             if (mRobotControler != null)
             {
                 mRobotControler.ModelChanged -= OnRobotModelChanged;
@@ -134,16 +142,42 @@ namespace RapidRobot
             if (dialog.ShowDialog() != DialogResult.OK)
                 return;
 
-            RobotBody robot;
+            var urdfFile = dialog.FileName;
+            LoadRobot(() => new RobotLoadResult(
+                RobotIO.Load(new AnyCAD.Foundation.Path(urdfFile)),
+                name => UrdfVisualMesh.Load(urdfFile, name)), "Failed to open URDF");
+        }
+
+        private void CreateManualKr500_Click(object sender, EventArgs e)
+        {
+            var modelDirectory = IOPath.Combine(AppContext.BaseDirectory, "Model", "Kr500");
+            LoadRobot(() => new RobotLoadResult(
+                ManualKr500Factory.Create(modelDirectory),
+                name => ManualKr500Factory.LoadLinkMesh(modelDirectory, name)),
+                "Failed to create Kr500 in code");
+        }
+
+        private void CreateManual3A_Click(object sender, EventArgs e)
+        {
+            var modelDirectory = IOPath.Combine(AppContext.BaseDirectory, "Model", "3A");
+            LoadRobot(() => new RobotLoadResult(
+                Manual3AFactory.Create(modelDirectory),
+                name => Manual3AFactory.LoadLinkMesh(modelDirectory, name)),
+                "Failed to create 3A in code");
+        }
+
+        private void LoadRobot(Func<RobotLoadResult> create, string errorTitle)
+        {
+            RobotLoadResult loaded;
             progressBar1.Style = ProgressBarStyle.Marquee;
             progressBar1.Visible = true;
             try
             {
-                robot = RobotIO.Load(new AnyCAD.Foundation.Path(dialog.FileName));
+                loaded = create();
             }
             catch (Exception exception)
             {
-                MessageBox.Show(this, exception.Message, "Failed to open URDF", MessageBoxButtons.OK,
+                MessageBox.Show(this, exception.Message, errorTitle, MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return;
             }
@@ -153,9 +187,11 @@ namespace RapidRobot
                 progressBar1.Style = ProgressBarStyle.Blocks;
             }
 
-            if (robot == null || robot.GetArmCount() == 0)
+            var robot = loaded?.Body;
+            if (robot == null || loaded.LoadLinkMesh == null || robot.GetArmCount() == 0)
             {
-                MessageBox.Show(this, "The URDF does not contain a usable robot Arm.", "Failed to open URDF",
+                robot?.Dispose();
+                MessageBox.Show(this, "The robot does not contain a usable Arm.", errorTitle,
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -166,7 +202,7 @@ namespace RapidRobot
             mRenderView.ShowSceneNode(robot);
 
             mRobotControler = new AnyCAD.Robot.RobotControler(robot);
-            mRobotUrdfFile = dialog.FileName;
+            mLoadLinkMesh = loaded.LoadLinkMesh;
             mRobotControler.ModelChanged += OnRobotModelChanged;
             mRobotControler.SelectedArmChanged += ResetIkTargetToSelectedArm;
             mRenderView.ShowSceneNode(mRobotControler.Trajectory);

@@ -24,6 +24,7 @@
   <ItemGroup>
     <Content Include="..\..\Model\**\*.urdf" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\Model\**\*.stl" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Model\**\*.brep" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

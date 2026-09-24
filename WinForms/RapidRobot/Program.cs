@@ -17,10 +17,11 @@ namespace RapidRobot
             AnyCAD.Foundation.GlobalInstance.Initialize();
             AnyCAD.Foundation.ExchangeInstance.Initialize();
             // The 2026.9.22.1736 SDK's SimulateInstance.Initialize() blocks while
-            // loading Physics. Load the planner and FCL plugins explicitly instead.
+            // loading Physics. Load the required IK, planner and collision plugins explicitly.
             var native = System.IO.Path.Combine(AppContext.BaseDirectory,
                 "runtimes", "win-x64", "native");
-            foreach (var plugin in new[] { "AnyCAD.Simulate.FCL.dll", "AnyCAD.Simulate.Plan.dll" })
+            foreach (var plugin in new[] { "AnyCAD.Simulate.Ik.dll", "AnyCAD.Simulate.RL.dll",
+                "AnyCAD.Simulate.FCL.dll", "AnyCAD.Simulate.Plan.dll" })
             {
                 var path = System.IO.Path.Combine(native, plugin);
                 try
@@ -43,6 +44,10 @@ namespace RapidRobot
                     return SimulationSdkAcceptance.Run(args[1], args.Length == 3 ? args[2] : null);
                 if (args.Length == 3 && args[0] == "--collision-self-test")
                     return CollisionDemoAcceptance.Run(args[1], args[2]);
+                if (args.Length == 3 && args[0] == "--manual-kr500-self-test")
+                    return ManualKr500Acceptance.Run(args[1], args[2]);
+                if (args.Length == 3 && args[0] == "--manual-3a-self-test")
+                    return Manual3AAcceptance.Run(args[1], args[2]);
                 Application.Run(new MainForm());
                 return 0;
             }

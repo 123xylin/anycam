@@ -10,14 +10,23 @@ namespace RapidRobot
     internal static class CollisionDemoAcceptance
     {
         internal static int Run(string reportPath, string modelRoot)
+            => Run(reportPath, modelRoot, false);
+
+        internal static int RunManual(string reportPath, string modelRoot)
+            => Run(reportPath, modelRoot, true);
+
+        private static int Run(string reportPath, string modelRoot, bool manual)
         {
             var report = new StringBuilder();
             try
             {
                 string urdf = System.IO.Path.Combine(modelRoot, "Kr500", "index.urdf");
-                using var path = new AnyCAD.Foundation.Path(urdf);
-                using var body = RobotIO.Load(path);
-                Check(body != null, "Kr500 URDF load");
+                string directory = System.IO.Path.Combine(modelRoot, "Kr500");
+                Func<string, CollisionTriangleMesh> loadMesh = manual
+                    ? name => ManualKr500Factory.LoadLinkMesh(directory, name)
+                    : name => UrdfVisualMesh.Load(urdf, name);
+                using var body = manual ? ManualKr500Factory.Create(directory) : LoadUrdf(urdf);
+                Check(body != null, "Kr500 load");
                 using (var axis2 = new RobotJointIndex(1))
                 using (var axis3 = new RobotJointIndex(2))
                 {
@@ -29,7 +38,7 @@ namespace RapidRobot
                 foreach (var name in new[] { "AXIS2", "AXIS3" })
                 {
                     uint index = FindLink(body, name);
-                    using var mesh = UrdfVisualMesh.Load(urdf, name);
+                    using var mesh = loadMesh(name);
                     using var options = new VhacdOptions {
                         MaxConvexHulls = 8, Resolution = 100000,
                         MinimumVolumePercentErrorAllowed = 2.5,
@@ -122,7 +131,7 @@ namespace RapidRobot
                 }
                 report.AppendLine("PASS adjacent Link exemption changes collision detection");
                 List<CollisionDemoModel.Hull> axis6Hulls;
-                using (var mesh = UrdfVisualMesh.Load(urdf, "AXIS6"))
+                using (var mesh = loadMesh("AXIS6"))
                 using (var options = new VhacdOptions {
                     MaxConvexHulls = 8, Resolution = 100000,
                     MinimumVolumePercentErrorAllowed = 2.5,
@@ -274,6 +283,12 @@ namespace RapidRobot
                 File.WriteAllText(reportPath, report.ToString());
                 return 1;
             }
+        }
+
+        private static RobotBody LoadUrdf(string urdf)
+        {
+            using var path = new AnyCAD.Foundation.Path(urdf);
+            return RobotIO.Load(path);
         }
 
         private static uint FindLink(RobotBody body, string name)
