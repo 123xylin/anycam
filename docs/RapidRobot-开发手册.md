@@ -1,10 +1,8 @@
 # RapidRobot 开发手册
 
-> 适用分支：`feat/robot-tree`；正式 SDK：`AnyCAD.Rapid.NET` 与 `AnyCAD.Simulate.NET` `2026.9.22.1736`。本文解释仓库中的 WinForms RapidRobot；Avalonia 示例在文末定位。
-
 ## 1. 获取、构建与运行
 
-环境为 Windows x64、.NET 8 SDK 和可访问 NuGet.org 的包源。仓库的 [NuGet.config](../NuGet.config) 用 `<clear />` 清除机器包源，只保留 NuGet.org；[RapidRobot.csproj](../WinForms/RapidRobot/RapidRobot.csproj) 把两个 AnyCAD 包固定在同一时间版本，目标是 `net8.0-windows`、WinForms 和 x64。项目将 `Model` 下的 URDF/STL 复制到输出目录。无需构建 `../platform`。
+环境为 Windows x64、.NET 8 SDK 和可访问 NuGet.org 的包源。仓库的 [NuGet.config](../NuGet.config) 用 `<clear />` 清除机器包源，只保留 NuGet.org；[RapidRobot.csproj](../WinForms/RapidRobot/RapidRobot.csproj) 把两个 AnyCAD 包固定在同一时间版本，目标是 `net8.0-windows`、WinForms 和 x64。项目将 `Model` 下的 URDF/STL 复制到输出目录。
 
 ```powershell
 dotnet restore WinForms\RapidRobot\RapidRobot.csproj --source https://api.nuget.org/v3/index.json
@@ -12,7 +10,7 @@ dotnet build WinForms\RapidRobot\RapidRobot.csproj -c Release --no-restore
 .\WinForms\bin\Release\net8.0-windows\RapidRobot.exe
 ```
 
-从「Open」选择输出目录的 `Model\Kr500\index.urdf`。其他自带模型有 `3A`、`dual_slide`、`shared_gantry_dual_6r`。`WinForms\AnyRobot.WinForms.sln` 只含 RapidRobot。Release 输出路径来自项目的 `OutputPath`；不要假设可执行文件位于项目目录的 `bin` 下。
+从「Open」选择输出目录的 `Model\Kr500\index.urdf`。其他自带模型有 `3A`、`dual_slide`、`shared_gantry_dual_6r`。`WinForms\AnyRobot.WinForms.sln` 只含 RapidRobot。Release 输出路径来自项目的 `OutputPath`。
 
 ## 2. 项目构成与调用链
 
@@ -33,7 +31,8 @@ dotnet build WinForms\RapidRobot\RapidRobot.csproj -c Release --no-restore
 
 ## 3. SDK 启动与后端
 
-`Program.Main` 先初始化 `GlobalInstance` 和 `ExchangeInstance`。在正式 `2026.9.22.1736` 包上，本机直接调用返回 `void` 的 `SimulateInstance.Initialize()` 时，Physics 插件加载会卡住。程序因此从输出目录的 `runtimes\win-x64\native` 显式加载 `AnyCAD.Simulate.FCL.dll` 与 `AnyCAD.Simulate.Plan.dll`，通过 `SimulationBackends.LoadPlugin` 注册，再把 Planner/Collision 默认值设为 `OMPL`/`FCL`。失败会写入 Debug 输出；窗口中实际规划失败时显示后端诊断。不要将后续本地包的 `bool Initialize()` 或 `GetInitializationDiagnostic()` 写入包版代码。
+`Program.Main` 先初始化 `GlobalInstance` 和 `ExchangeInstance`。从输出目录的 `runtimes\win-x64\native` 显式加载 `AnyCAD.Simulate.FCL.dll` 与 `AnyCAD.Simulate.Plan.dll`，通过 `SimulationBackends.LoadPlugin` 注册，再把 Planner/Collision 默认值设为 `OMPL`/`FCL`。失败会写入 Debug 输出；窗口中实际规划失败时显示后端诊断。
+(这里待下一个正式版做微小的优化)
 
 `SimulationSdkForm` 用 `SimulationBackends.List(kind, true)` 列出可用和不可用后端，显示不可用原因；用户选择后构建 `BackendSelection`。IK、规划和碰撞后端是不同种类，名称不可互换。官方包验收覆盖 KDL/LMA/RL IK 和 OMPL/FCL 规划；本机无法完成的 Physics 初始化不等于这些已验证后端不可用。
 
@@ -47,9 +46,9 @@ dotnet build WinForms\RapidRobot\RapidRobot.csproj -c Release --no-restore
 
 ## 5. Link V-HACD 碰撞体
 
-`CollisionDemoForm.Generate` 只处理当前选中 Link 的 URDF visual STL。`UrdfVisualMesh.Load` 支持二进制和 ASCII STL：读取 visual 中的 mesh scale 与 origin `xyz/rpy`，按 URDF 的 `Rz·Ry·Rx` 旋转顺序变换顶点，再乘 `RobotIO.Load` 默认的 1000 倍长度比例，输出 **Link 局部坐标**三角网格。无 STL、缺文件或无完整三角面会给出诊断；该示例目前不读取 DAE/OBJ，也不把生成结果写回 URDF。
+`CollisionDemoForm.Generate` 只处理当前选中 Link 的 URDF visual STL。`UrdfVisualMesh.Load` 支持二进制和 ASCII STL：读取 visual 中的 mesh scale 与 origin `xyz/rpy`，按 URDF 的 `Rz·Ry·Rx` 旋转顺序变换顶点，再乘 `RobotIO.Load` 默认的 1000 倍长度比例，输出 **Link 局部坐标**三角网格。无 STL、缺文件或无完整三角面会给出诊断。
 
-AnyDesigner.exe 的“快速”预设落实为 `MaxConvexHulls=8`、`Resolution=100000`、`MinimumVolumePercentErrorAllowed=2.5`、`MaxRecursionDepth=8`、`MaxNumVerticesPerCH=32`，其余用 `VhacdOptions` 默认值（`ShrinkWrap=true`、`FillMode=FloodFill`）。`ConvexDecompositionSession.Compute` 在后台任务执行；WinForms 定时器读取进度，「Cancel」调用 `Cancel()`。结果成功且非空才进入黄色候选预览；「Confirm preview」把结果移入已确认集合并显示蓝色预览。「Delete」同时清掉候选和已确认结果；失败或取消不会覆盖之前确认的碰撞体。
+默认设置参数为 `MaxConvexHulls=8`、`Resolution=100000`、`MinimumVolumePercentErrorAllowed=2.5`、`MaxRecursionDepth=8`、`MaxNumVerticesPerCH=32`，其余用 `VhacdOptions` 默认值（`ShrinkWrap=true`、`FillMode=FloodFill`）。`ConvexDecompositionSession.Compute` 在后台任务执行；WinForms 定时器读取进度，「Cancel」调用 `Cancel()`。结果成功且非空才进入黄色候选预览；「Confirm preview」把结果移入已确认集合并显示蓝色预览。「Delete」同时清掉候选和已确认结果；失败或取消不会覆盖之前确认的碰撞体。
 
 `CollisionDemoModel.ApplyTo` 对每个已确认 Link 创建一个 `PlanningCollisionBody`，其中每个 V-HACD 结果是一个 `PlanningCollisionShape(Type=ConvexHull)`；使用 Link 的当前世界变换，并用 `RobotCollisionBinding` 绑定相应 `RobotLinkIndex`，`LinkToBody` 为单位阵。一个 Link 的多个凸包因而共同参与碰撞计算。预览场景节点使用同一批顶点/三角索引，随 `UpdateLinkTransforms` 跟随机器人。再次应用请求时会清掉本模型之前写入的碰撞体和绑定，避免重复。
 
@@ -71,7 +70,7 @@ AnyDesigner.exe 的“快速”预设落实为 `MaxConvexHulls=8`、`Resolution=
 4. `CollisionDemoModel.ApplyTo` 从已确认凸包、当前盒体及豁免重建碰撞请求；后台调用 `Plan`。起点/终点碰撞、超时、取消、后端缺失或目标不可达时显示规划状态与诊断，不加载失败结果。
 5. 成功结果交给 `RobotTrajectoryPlayer.Load`；「Play」「Pause」「Stop / cancel」及时间滑块调用 `Play/Pause/Stop/Seek`。定时器用真实经过时间调用 `Tick`，并更新凸包预览变换与渲染。
 
-停止播放使机器人返回轨迹起点。关闭窗口取消任务并释放播放器、后端和预览；重新加载机器人时主窗体关闭旧窗口并创建新的 `CollisionDemoModel`。凸包、场景盒和豁免只在窗口会话中保存，**没有 JSON 保存或 URDF 写回**。若实际机器人已被其他界面移动，重新打开演示窗口或重新计算目标，避免把旧规划当成当前状态。
+停止播放使机器人返回轨迹起点。关闭窗口取消任务并释放播放器、后端和预览；重新加载机器人时主窗体关闭旧窗口并创建新的 `CollisionDemoModel`。若实际机器人已被其他界面移动，重新打开演示窗口或重新计算目标，避免把旧规划当成当前状态。
 
 ## 8. 自测与排障
 
@@ -96,22 +95,3 @@ $models = 'C:\absolute\path\to\anyrobot\WinForms\bin\Release\net8.0-windows\Mode
 
 扩展网格格式应从 `UrdfVisualMesh` 入手；增加场景形状或持久化应扩展 `CollisionDemoModel` 与其预览/规划双向构造；换规划算法应检查 `SimulationBackends` 的能力描述与结果状态。不要直接在界面控件中缓存另一份碰撞请求。
 
-## 9. SDK 包时间线与分支
-
-NuGet.org 正式版本为 [Rapid.NET 2026.9.22.1736](https://www.nuget.org/packages/AnyCAD.Rapid.NET/2026.9.22.1736) 和 [Simulate.NET 2026.9.22.1736](https://www.nuget.org/packages/AnyCAD.Simulate.NET/2026.9.22.1736)；包名时间标记按北京时间 **2026 年 9 月 22 日 17:36** 记录。`feat/robot-tree` 面向 `master`，仅依赖正式包；`master` 待 MR 合入才取得更新。`dev` 包含该分支的功能，另有 `2026.9.23.1213` 本地离线包及打包后初始化 API 的专属适配。该离线包不是 NuGet.org 发布版。
-
-| 晚于时间标记的提交 | 变化 | 性质 |
-| --- | --- | --- |
-| Simulate `530df41`，9/22 17:42 | Kernel 初始化构建调整、移除 DLLMain 初始化 | 运行时 |
-| Robot `f886e69`，9/22 17:43；UX `50b0bd7`，17:44 | AnyRobot/AnyCAM/AnyDesigner 链接 Simulate Kernel 并调整插件清单 | 应用集成 |
-| Swig `d267ecf`，9/22 21:27；DotNETAPI `7b32a3d`，21:55 | 首次 configure 与确定性 C# 生成修复 | 构建工具 |
-| Simulate `a7c0f55`，9/23 12:40 | `Initialize()` 返回 `bool`，增加诊断接口 | **未进入正式包的 API** |
-| DotNETAPI `52c9af9`，9/23 12:59 | .NET Host/示例的 Simulate 插件加载与 SWIG 调整 | 集成 |
-| Simulate `a371802`，9/23 14:56 | AnyRobotSimple 链接调整 | 示例构建 |
-| DotNETAPI `a650b02`，9/23 15:01；`03b41fe`，15:36 | `EnableRendering` 与示例资源释放调整 | API/示例 |
-
-`../platform` 还有未提交源码与子模块改动，不属于正式包，也未被包版分支引用。这里的提交时间均按北京时间比较；详细的 SDK API 版本界限见 [AnyCAD.Simulate.NET 开发手册](AnyCAD.Simulate.NET-开发手册.md)。
-
-## 10. 同仓库其他项目
-
-`Avalonia\AnyRobot.Avalonia.sln` 包含 `AnyTube.NET` 和 `NCViewer.NET`：前者读取 `AnyTubeJsonLoader` 的管材 JSON 示例并由 `AnyTubeScene`/`PathAnimator` 展示；后者由 `NcFileParser` 解析 NC 文档并通过 `NcScene`/`ToolAnimator` 呈现。这两个项目使用 `AnyCAD.Rapid.Avalonia` 与较早的 `AnyCAD.Simulate.NET 2026.6.12.1032`，不是本手册的 RapidRobot 构建依赖，也不共享本次碰撞编辑模型。
