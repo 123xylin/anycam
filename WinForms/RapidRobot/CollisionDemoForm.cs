@@ -22,7 +22,6 @@ namespace RapidRobot
 
         private readonly RobotBody body;
         private readonly Func<string, CollisionTriangleMesh> loadLinkMesh;
-        private readonly bool isKr500;
         private readonly Action redraw;
         private readonly CollisionDemoModel model;
         private readonly BackendSelection backends = SimulationBackends.GetDefaults();
@@ -47,13 +46,12 @@ namespace RapidRobot
         internal GroupSceneNode PreviewRoot => model.PreviewRoot;
 
         internal CollisionDemoForm(RobotBody body,
-            Func<string, CollisionTriangleMesh> loadLinkMesh, bool isKr500, Action redraw)
+            Func<string, CollisionTriangleMesh> loadLinkMesh, Action redraw)
         {
             this.body = body;
             this.loadLinkMesh = loadLinkMesh;
-            this.isKr500 = isKr500;
             this.redraw = redraw;
-            if (IsKr500()) SetKr500DemoPose();
+            SetKr500DemoPose();
             model = new CollisionDemoModel(body);
             Text = "Collision authoring and Kr500 path planning";
             Width = 850;
@@ -201,16 +199,11 @@ namespace RapidRobot
                 model.PreviewRoot.Clear();
                 redraw();
             };
-            if (IsKr500())
-                model.AddObstacle();
+            model.AddObstacle();
             RefreshOwners();
-            status.Text = IsKr500()
-                ? "Generate and confirm AXIS2, AXIS3 and AXIS6 hulls, then plan the tip."
-                : "Generate and confirm Link hulls, then plan the tip around a scene box.";
+            status.Text = "Generate and confirm Link hulls, then plan the tip around a scene box. The default pose and obstacle are tuned for Kr500.";
             redraw();
         }
-
-        private bool IsKr500() => isKr500;
 
         private void SetKr500DemoPose()
         {

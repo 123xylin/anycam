@@ -46,6 +46,8 @@ namespace RapidRobot
                     return CollisionDemoAcceptance.Run(args[1], args[2]);
                 if (args.Length == 3 && args[0] == "--manual-kr500-self-test")
                     return ManualKr500Acceptance.Run(args[1], args[2]);
+                if (args.Length == 3 && args[0] == "--manual-3a-self-test")
+                    return Manual3AAcceptance.Run(args[1], args[2]);
                 Application.Run(new MainForm());
                 return 0;
             }
