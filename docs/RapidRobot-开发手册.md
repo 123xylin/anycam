@@ -2,7 +2,7 @@
 
 ## 1. 获取、构建与运行
 
-环境为 Windows x64、.NET 8 SDK 和可访问 NuGet.org 的包源。仓库的 [NuGet.config](../NuGet.config) 用 `<clear />` 清除机器包源，只保留 NuGet.org；[RapidRobot.csproj](../WinForms/RapidRobot/RapidRobot.csproj) 把两个 AnyCAD 包固定在同一时间版本，目标是 `net8.0-windows`、WinForms 和 x64。项目将 `Model` 下的 URDF/STL 复制到输出目录。
+环境为 Windows x64、.NET 8 SDK 和可访问 NuGet.org 的包源。仓库的 [NuGet.config](../NuGet.config) 用 `<clear />` 清除机器包源，只保留 NuGet.org；[RapidRobot.csproj](../WinForms/RapidRobot/RapidRobot.csproj) 把两个 AnyCAD 包固定在同一时间版本，目标是 `net8.0-windows`、WinForms 和 x64。项目将 `Model` 下的 URDF、STL 和 BREP 复制到输出目录。BREP 读取器在 `AnyCAD.Rapid.NET` 依赖的同版本 `AnyCAD.Foundation.Win64` 包内，当前模块名为 `AnyCAD.Exchange.Xde.dll`。
 
 ```powershell
 dotnet restore WinForms\RapidRobot\RapidRobot.csproj --source https://api.nuget.org/v3/index.json
@@ -10,25 +10,27 @@ dotnet build WinForms\RapidRobot\RapidRobot.csproj -c Release --no-restore
 .\WinForms\bin\Release\net8.0-windows\RapidRobot.exe
 ```
 
-主窗口有并列的「导入 URDF」和「代码创建 Kr500」按钮。前者可选择输出目录的 `Model\Kr500\index.urdf`，后者仅读取同目录下的 STL，并用代码建立机器人。其他自带 URDF 模型有 `3A`、`dual_slide`、`shared_gantry_dual_6r`。`WinForms\AnyRobot.WinForms.sln` 只含 RapidRobot。Release 输出路径来自项目的 `OutputPath`。
+主窗口有「导入 URDF」和「代码装配」两个入口。前者可选择输出目录的 `Model\Kr500\index.urdf`；后者包含 Kr500（STL）和 3A（BREP）两个示例，运行时只读取相应几何资产，由代码常量装配机器人拓扑。其他自带 URDF 模型有 `dual_slide`、`shared_gantry_dual_6r`。`WinForms\AnyRobot.WinForms.sln` 只含 RapidRobot。Release 输出路径来自项目的 `OutputPath`。
 
 ## 2. 项目构成与调用链
 
 | 文件 | 职责与主要入口 |
 | --- | --- |
-| [Program.cs](../WinForms/RapidRobot/Program.cs) | WinForms 与 Foundation/Exchange 初始化，加载 IK/RL/Plan/FCL 插件，设置 OMPL/FCL 默认后端，分派 GUI 或三个自测命令。 |
-| [MianForm.cs](../WinForms/RapidRobot/MianForm.cs)、`MianForm.Designer.cs` | 主窗口、两种机器人创建入口、共享装载、场景显示、窗体生命周期和重绘。文件名 `MianForm` 是现有拼写，类名为 `MainForm`。 |
+| [Program.cs](../WinForms/RapidRobot/Program.cs) | WinForms 与 Foundation/Exchange 初始化，加载 IK/RL/Plan/FCL 插件，设置 OMPL/FCL 默认后端，分派 GUI 或四个自测命令。 |
+| [MianForm.cs](../WinForms/RapidRobot/MianForm.cs)、[RobotLoadResult.cs](../WinForms/RapidRobot/RobotLoadResult.cs) | URDF 或代码装配入口都交付 `RobotBody` 和 Link 局部网格加载函数；主窗口负责统一安装、清理、场景显示和重绘。文件名 `MianForm` 是现有拼写，类名为 `MainForm`。 |
 | [RobotControler.cs](../WinForms/RapidRobot/RobotControler.cs) | 单个 `RobotBody` 的 Arm/关节读取、点动、末端 IK、复位、显示及轨迹粒子。 |
 | [RobotIndicatorForm.cs](../WinForms/RapidRobot/RobotIndicatorForm.cs)、`RobotIndicatorForm.Designer.cs` | 关节/Arm 控制面板；调用控制器并通过 `OnUpdate` 请求重绘。 |
 | [RobotTargetEditor.cs](../WinForms/RapidRobot/RobotTargetEditor.cs) | 交互式末端目标编辑，预览变换交给控制器求 IK。 |
 | [SimulationSdkForm.cs](../WinForms/RapidRobot/SimulationSdkForm.cs) | 后端列表、单关节规划、全末端 IK 检查及播放的 SDK 窗口。 |
 | [ManualKr500Factory.cs](../WinForms/RapidRobot/ManualKr500Factory.cs) | 以代码常量建立 Kr500 拓扑，并把 STL 显示节点挂在各 Link 上；也提供手工模型的局部碰撞网格。 |
+| [Manual3AFactory.cs](../WinForms/RapidRobot/Manual3AFactory.cs)、[BrepLinkMesh.cs](../WinForms/RapidRobot/BrepLinkMesh.cs) | 以代码常量建立 3A 拓扑；从 BREP 构造显示节点，三角化后为 V-HACD 提供 Link 局部网格。 |
+| [RobotAssemblyPose.cs](../WinForms/RapidRobot/RobotAssemblyPose.cs) | 两个代码装配工厂共用的毫米与 `Rz·Ry·Rx` 位姿构造。 |
 | [StlLinkMesh.cs](../WinForms/RapidRobot/StlLinkMesh.cs)、[UrdfVisualMesh.cs](../WinForms/RapidRobot/UrdfVisualMesh.cs) | 共用二进制/ASCII STL 读取与 Link 局部变换；URDF 入口只负责提取 visual 参数。 |
 | [CollisionDemoModel.cs](../WinForms/RapidRobot/CollisionDemoModel.cs) | 当前会话的确认凸包、候选预览、场景盒、豁免对；把它们写入规划请求。 |
 | [CollisionDemoForm.cs](../WinForms/RapidRobot/CollisionDemoForm.cs) | V-HACD、场景实体、豁免和 Kr500 末端避障的交互窗口。 |
-| [SimulationSdkAcceptance.cs](../WinForms/RapidRobot/SimulationSdkAcceptance.cs)、[CollisionDemoAcceptance.cs](../WinForms/RapidRobot/CollisionDemoAcceptance.cs)、[ManualKr500Acceptance.cs](../WinForms/RapidRobot/ManualKr500Acceptance.cs) | SDK、URDF/手工 Kr500 碰撞规划及模型等价性验收。 |
+| [SimulationSdkAcceptance.cs](../WinForms/RapidRobot/SimulationSdkAcceptance.cs)、[CollisionDemoAcceptance.cs](../WinForms/RapidRobot/CollisionDemoAcceptance.cs)、[ManualKr500Acceptance.cs](../WinForms/RapidRobot/ManualKr500Acceptance.cs)、[Manual3AAcceptance.cs](../WinForms/RapidRobot/Manual3AAcceptance.cs) | SDK、碰撞规划、Kr500 与 3A 代码装配及模型等价性验收。 |
 
-主路径是 `Program.Main → MainForm → RobotIO.Load 或 ManualKr500Factory.Create → RobotControler/SimulationSdkForm/CollisionDemoForm → RobotSimulationSession → RobotTrajectoryPlayer`。`MainForm.LoadRobot` 在新机器人构建成功后统一关闭旧窗口、安装控制器与场景节点；创建失败保留原场景。`ModelChanged` 将控制器运动、碰撞预览 Link 变换和渲染重绘连在一起。
+主路径是 `Program.Main → MainForm → RobotIO.Load 或代码装配工厂 → RobotLoadResult → RobotControler/SimulationSdkForm/CollisionDemoForm → RobotSimulationSession → RobotTrajectoryPlayer`。`MainForm.LoadRobot` 在新机器人构建成功后统一关闭旧窗口、安装控制器与场景节点；创建失败保留原场景。`ModelChanged` 将控制器运动、碰撞预览 Link 变换和渲染重绘连在一起。
 
 ## 3. SDK 启动与后端
 
@@ -39,7 +41,7 @@ dotnet build WinForms\RapidRobot\RapidRobot.csproj -c Release --no-restore
 
 ## 4. 机器人模型、坐标与控制
 
-`MainForm` 的导入入口以 `RobotIO.Load(Path)` 读取 URDF，手工入口调用 `ManualKr500Factory.Create`。两者都要求至少一个 Arm，再将 `RobotBody` 加入 `RenderControl`。主窗体保存当前 Link 网格加载函数，碰撞窗口无需区分来源。URDF 中的长度为米；SDK 默认 `RobotUrdfLoadOptions.LengthScale=1000`，`RobotBody` 的位置及示例窗体的位移和尺寸以毫米表示。旋转关节用弧度，连续关节不按 `[-π, π]` 截断。
+`MainForm` 的导入入口以 `RobotIO.Load(Path)` 读取 URDF；代码入口调用 Kr500 或 3A 工厂。每个入口返回 `RobotLoadResult(Body, LoadLinkMesh)`，要求至少一个 Arm，然后交给相同的 `LoadRobot` 流程；控制、IK、碰撞窗口和播放都只接收 `RobotBody`，V-HACD 另外使用 Link 局部网格加载函数。接入厂商数据表或装配 UI 时，构造 `RobotModel`/`RobotBody` 并返回相同结果即可，不需要修改后续算法。URDF 中的长度为米；SDK 默认 `RobotUrdfLoadOptions.LengthScale=1000`，`RobotBody` 的位置及示例窗体的位移和尺寸以毫米表示。旋转关节用弧度，连续关节不按 `[-π, π]` 截断。
 
 `RobotModel` 保存 Link、Joint、Frame、Arm 的拓扑；`RobotBody` 保存当前关节状态、世界变换与可视节点。`RobotLinkIndex` 等索引类型避免把四类索引混用。`RobotControler` 按 Arm 的路径偏移找到真正的 `RobotJointIndex`：固定关节拒绝点动；有界关节按限位钳制；连续关节允许越过 `2π`。设置位置后调用 `UpdateFrames()` 并触发 `ModelChanged`。`Reset()` 调用 `ResetToHome()`。
 
@@ -81,9 +83,26 @@ using var robot = RobotBody.Create(model);
 
 上述片段是可独立创建的两 Link 最小模型；完整 Kr500 工厂还依次加入后续 Link、Joint、STL Visual 和法兰。STL 原始顶点已经以毫米计，URDF 的 `mesh scale=0.001` 与默认 `LengthScale=1000` 相抵；visual 的 `xyz` 和 Joint Origin 则从米换算到毫米，姿态按 `T·Rz·Ry·Rx` 构造。`StlLinkMesh` 将 visual 变换应用到顶点，使显示和 V-HACD 均使用 Link 局部网格。模型创建失败或 STL 缺失时，主窗体显示错误并保留当前机器人。
 
+### 4.2 代码创建 3A（BREP）与自定义数据接入
+
+`Manual3AFactory` 以代码常量建立 `CS → Y → X → A → T → T_tip`，包括四条移动 Joint、一条固定 Joint、末端 Frame 和 Arm。运行时只读取 `0.brep` 至 `4.brep`；对应安装位置、旋转轴、±350 mm 限位和 200 mm/s 速度由代码提供。BREP 原始坐标按毫米使用，显示节点由 `ShapeIO.Open` 与 `BrepSceneNode.Create` 构造，Link 局部安装姿态仍由 `RobotAssemblyPose.Create` 给出。
+
+```csharp
+using var shape = ShapeIO.Open(brepFile);
+using var visual = BrepSceneNode.Create(shape, 0.5, false);
+using var origin = RobotAssemblyPose.Create(x, y, z, roll, pitch, yaw);
+visual.SetTransform(origin);
+// 将 visual 加入 RobotLink.Visuals，再把 Link/Joint/Frame/Arm 加入 RobotModel。
+var robot = RobotBody.Create(model);
+var source = new RobotLoadResult(robot,
+    linkName => Manual3AFactory.LoadLinkMesh(modelDirectory, linkName));
+```
+
+装配 UI 或厂商表只负责提供拓扑、关节参数和每个 Link 的几何文件及局部安装位姿；STL/BREP 的来源不影响后续运动学与规划。工厂不解析 `index.mson` 或 `index.urdf`；URDF 只在自测中作为拓扑和 FK 对照。
+
 ## 5. Link V-HACD 碰撞体
 
-`CollisionDemoForm.Generate` 通过当前机器人的 Link 网格加载函数获取 **Link 局部坐标**三角网格。URDF 入口用 `UrdfVisualMesh` 提取 visual 参数；手工入口使用工厂中的 STL 文件及安装姿态常量；两者最终调用同一个 `StlLinkMesh` 二进制/ASCII STL 读取器。无 STL、缺文件或无完整三角面会给出诊断。手工模型创建时不预先生成碰撞体，仍需在窗口中生成并确认。
+`CollisionDemoForm.Generate` 通过当前机器人的 Link 网格加载函数获取 **Link 局部坐标**三角网格。URDF 入口用 `UrdfVisualMesh` 提取 visual 参数；Kr500 代码入口使用 STL 与安装姿态；3A 代码入口由 `BrepLinkMesh` 使用 `ShapeIO.Save` 将 `TopoShape` 临时三角化为 STL，再通过同一个 `StlLinkMesh` 应用局部姿态，临时文件随后删除。可见 BREP 与碰撞网格来自同一资产。缺文件、损坏 BREP、无完整三角面或三角化失败会给出诊断。手工模型创建时不预先生成碰撞体，仍需在窗口中生成并确认。
 
 默认设置参数为 `MaxConvexHulls=8`、`Resolution=100000`、`MinimumVolumePercentErrorAllowed=2.5`、`MaxRecursionDepth=8`、`MaxNumVerticesPerCH=32`，其余用 `VhacdOptions` 默认值（`ShrinkWrap=true`、`FillMode=FloodFill`）。`ConvexDecompositionSession.Compute` 在后台任务执行；WinForms 定时器读取进度，「Cancel」调用 `Cancel()`。结果成功且非空才进入黄色候选预览；「Confirm preview」把结果移入已确认集合并显示蓝色预览。「Delete」同时清掉候选和已确认结果；失败或取消不会覆盖之前确认的碰撞体。
 
@@ -97,7 +116,7 @@ using var robot = RobotBody.Create(model);
 
 ## 7. Kr500 末端避障、诊断与播放
 
-打开 Kr500 的「Collision demo」会设置演示姿态：AXIS2 `-0.45 rad`、AXIS3 `0.6 rad`，并创建默认障碍物。先生成并确认 AXIS2、AXIS3、AXIS6 的凸包；未确认任何 Link 凸包时窗口拒绝规划。默认目标是当前末端沿世界 X 轴 `-450 mm`，保留姿态，用户可改 X/Y/Z。
+打开「Collision demo」会直接尝试设置按 Kr500 调整的演示姿态：Joint 1 `-0.45`、Joint 2 `0.6`，并创建默认障碍物；程序不检查模型名称。对于 Kr500，先生成并确认 AXIS2、AXIS3、AXIS6 的凸包；未确认任何 Link 凸包时窗口拒绝规划。默认目标是当前末端沿世界 X 轴 `-450 mm`，保留姿态，用户可改 X/Y/Z。其他机器人也可进入相同流程，但这些默认数值可能不可用，界面显示实际 IK 或规划诊断。
 
 规划顺序如下：
 
@@ -117,19 +136,20 @@ $models = 'C:\absolute\path\to\anyrobot\WinForms\bin\Release\net8.0-windows\Mode
 & $exe --sdk-self-test 'C:\temp\sdk-report.txt' $models
 & $exe --collision-self-test 'C:\temp\collision-report.txt' $models
 & $exe --manual-kr500-self-test 'C:\temp\manual-kr500-report.txt' $models
+& $exe --manual-3a-self-test 'C:\temp\manual-3a-report.txt' $models
 ```
 
-可执行文件是 GUI 子系统程序；以报告文件和进程退出码判断结果。SDK 自测覆盖 FK、V-HACD、KDL/LMA/RL IK、轨迹时间参数化与采样、OMPL/FCL 规划及播放、不可用后端、连续关节、四个 URDF。碰撞自测覆盖 AXIS2/AXIS3/AXIS6 各 8 个凸包、相邻豁免改变检测结果、直达路径中点受阻、4 点绕行及 9 个采样状态、盒体或 Link 凸包删除/恢复、Kr500 播放和新会话状态重置。手工 Kr500 自测先与 URDF 比较拓扑、7 份局部 STL 网格、关节参数及两组姿态的 FK，再在手工模型上重复完整碰撞避障验收。自测通过不替代人工检查两个按钮切换、预览颜色、窗口布局、拖动及截图。
+可执行文件是 GUI 子系统程序；以报告文件和进程退出码判断结果。SDK 自测覆盖 FK、V-HACD、KDL/LMA/RL IK、轨迹时间参数化与采样、OMPL/FCL 规划及播放、不可用后端、连续关节、四个 URDF。碰撞自测覆盖 AXIS2/AXIS3/AXIS6 各 8 个凸包、相邻豁免改变检测结果、直达路径中点受阻、4 点绕行及 9 个采样状态、盒体或 Link 凸包删除/恢复、Kr500 播放和新会话状态重置。手工 Kr500 自测先与 URDF 比较拓扑、7 份局部 STL 网格、关节参数及两组姿态的 FK，再在手工模型上重复完整碰撞避障验收。手工 3A 自测比较拓扑、BREP/STL 局部网格边界及两组 FK，并验证 BREP V-HACD、IK、碰撞规划和播放。自测通过不替代人工检查三个入口切换、预览颜色、窗口布局、拖动及截图。
 
 | 现象 | 首先检查 |
 | --- | --- |
 | URDF 打不开 | 文件路径、相对 STL 路径、是否有 Arm；查看 `RobotIO.Load` 异常。 |
-| Link 无法生成凸包 | 选中的 Link 是否有 STL visual；文件是否为完整三角网格；`ConvexDecompositionSession.IsAvailable()` 与结果诊断。 |
+| Link 无法生成凸包 | 选中的 Link 是否有 STL/BREP visual；资产能否读取并三角化；`ConvexDecompositionSession.IsAvailable()` 与结果诊断。 |
 | IK `NoConvergence` | 目标是否可达，姿态是否过约束，Kr500 是否已在非奇异演示姿态。 |
 | 规划 `InvalidStart/InvalidGoal` | 当前或目标状态与已确认 Link/盒体发生碰撞；检查相邻豁免和单位。 |
 | 后端不可用 | 输出目录的原生 DLL、插件加载 Debug 记录和 `SimulationSdkForm` 的描述。 |
 | 路径看似穿透 | 确认凸包已点击确认，检查 `CollisionResolution`、可见盒体与碰撞盒体是否来自同一实体参数。 |
 | 重新打开后编辑消失 | 这是当前会话设计；目前没有持久化格式。 |
 
-扩展网格格式应从 `StlLinkMesh` 与两个来源适配器入手；增加场景形状或持久化应扩展 `CollisionDemoModel` 与其预览/规划双向构造；换规划算法应检查 `SimulationBackends` 的能力描述与结果状态。不要直接在界面控件中缓存另一份碰撞请求。
+扩展几何格式应实现对应的 Link 局部三角网格加载函数并放入 `RobotLoadResult`；增加场景形状或持久化应扩展 `CollisionDemoModel` 与其预览/规划双向构造；换规划算法应检查 `SimulationBackends` 的能力描述与结果状态。不要直接在界面控件中缓存另一份碰撞请求。
 

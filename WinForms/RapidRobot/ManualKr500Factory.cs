@@ -83,7 +83,7 @@ namespace RapidRobot
                     joint.SetParentLinkIndex(indices[spec.Parent]);
                     joint.SetChildLinkIndex(indices[spec.Child]);
                     joint.SetJointType(spec.Type);
-                    using var origin = Pose(spec.X, spec.Y, spec.Z,
+                    using var origin = RobotAssemblyPose.Create(spec.X, spec.Y, spec.Z,
                         spec.Roll, spec.Pitch, spec.Yaw);
                     joint.SetOrigin(origin);
                     if (spec.Type != EnumRobotJointType.Fixed)
@@ -113,21 +113,6 @@ namespace RapidRobot
                     ?? throw new InvalidOperationException("The hand-built Kr500 topology is invalid.");
             }
             finally { foreach (var index in indices) index.Dispose(); }
-        }
-
-        private static Matrix4d Pose(double x, double y, double z,
-            double roll, double pitch, double yaw)
-        {
-            using var translation = Matrix4d.makeTranslation(x, y, z);
-            using var xAxis = new Vector3d(1, 0, 0);
-            using var yAxis = new Vector3d(0, 1, 0);
-            using var zAxis = new Vector3d(0, 0, 1);
-            using var rx = Matrix4d.makeRotationAxis(xAxis, roll);
-            using var ry = Matrix4d.makeRotationAxis(yAxis, pitch);
-            using var rz = Matrix4d.makeRotationAxis(zAxis, yaw);
-            using var tRz = translation.multiplied(rz);
-            using var tRzRy = tRz.multiplied(ry);
-            return tRzRy.multiplied(rx);
         }
 
         private static PrimitiveSceneNode CreateVisual(string name, CollisionTriangleMesh mesh)
