@@ -1,4 +1,5 @@
 using AnyCAD.Foundation;
+using AnyCAD.Robot.Studio;
 using AnyCAD.Simulate;
 using System;
 using System.Diagnostics;
@@ -17,9 +18,34 @@ namespace RapidRobot.Wpf
             GlobalInstance.Initialize();
             ExchangeInstance.Initialize();
             LoadSimulationBackends();
+
+            // CLI self-tests mirror the WinForms Program.cs dispatch so the two
+            // frontends share the same AnyCAD.Robot.Studio acceptance suite.
+            if (TryRunSelfTest(e.Args))
+                return;
+
             var window = new MainWindow();
             MainWindow = window;
             window.Show();
+        }
+
+        private bool TryRunSelfTest(string[] args)
+        {
+            string modelRoot = IOPath.Combine(AppContext.BaseDirectory, "Model");
+            int exitCode = -1;
+            if ((args.Length == 2 || args.Length == 3) && args[0] == "--sdk-self-test")
+                exitCode = SimulationSdkAcceptance.Run(args[1], args.Length == 3 ? args[2] : null);
+            else if (args.Length == 3 && args[0] == "--collision-self-test")
+                exitCode = CollisionDemoAcceptance.Run(args[1], args[2]);
+            else if (args.Length == 3 && args[0] == "--manual-kr500-self-test")
+                exitCode = ManualKr500Acceptance.Run(args[1], args[2]);
+            else if (args.Length == 3 && args[0] == "--manual-3a-self-test")
+                exitCode = Manual3AAcceptance.Run(args[1], args[2]);
+            if (exitCode < 0)
+                return false;
+            Environment.ExitCode = exitCode;
+            Shutdown();
+            return true;
         }
 
         private static void LoadSimulationBackends()

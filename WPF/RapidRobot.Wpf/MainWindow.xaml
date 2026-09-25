@@ -138,7 +138,8 @@
                         Width="92"
                         Height="38"
                         Style="{StaticResource DangerButtonStyle}"
-                        ToolTip="急停">
+                        ToolTip="急停"
+                        Command="{Binding EmergencyStopCommand}">
                     <StackPanel Orientation="Horizontal">
                         <Border Width="9" Height="9" Background="White" CornerRadius="2" />
                         <TextBlock Text="急停"
@@ -159,6 +160,7 @@
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
@@ -168,7 +170,8 @@
                 <Button Grid.Column="0"
                         x:Name="ImportUrdfButton"
                         Height="34"
-                        Style="{StaticResource BaseButtonStyle}">
+                        Style="{StaticResource BaseButtonStyle}"
+                        Command="{Binding ImportUrdfCommand}">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE8E5;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -185,6 +188,15 @@
                         Margin="7,0,0,0"
                         Height="34"
                         Style="{StaticResource BaseButtonStyle}">
+                    <Button.ContextMenu>
+                        <ContextMenu DataContext="{Binding PlacementTarget.DataContext,
+                            RelativeSource={RelativeSource Self}}">
+                            <MenuItem Header="Kr500（STL）"
+                                      Command="{Binding LoadManualKr500Command}" />
+                            <MenuItem Header="3A（BREP）"
+                                      Command="{Binding LoadManual3ACommand}" />
+                        </ContextMenu>
+                    </Button.ContextMenu>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="&#xE90F;"
                                    FontFamily="Segoe MDL2 Assets"
@@ -208,7 +220,24 @@
                         Background="{StaticResource BorderBrush}"
                         VerticalAlignment="Center" />
 
-                <StackPanel Grid.Column="3"
+                <Button Grid.Column="3"
+                        x:Name="InteractiveTargetButton"
+                        Margin="0,0,7,0"
+                        Height="34"
+                        Style="{StaticResource BaseButtonStyle}"
+                        Command="{Binding ToggleInteractiveTargetCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8AB;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="14"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="交互式目标"
+                                   Margin="7,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <StackPanel Grid.Column="4"
                             Orientation="Horizontal"
                             VerticalAlignment="Center">
                     <ToggleButton Style="{StaticResource SegmentToggleStyle}" IsChecked="True">
@@ -225,22 +254,22 @@
                     </ToggleButton>
                 </StackPanel>
 
-                <ToggleButton Grid.Column="4"
+                <ToggleButton Grid.Column="5"
                               x:Name="LinkVisibilityToggle"
                               Width="66"
                               Style="{StaticResource SegmentToggleStyle}"
-                              IsChecked="True">
+                              IsChecked="{Binding IsLinkVisible}">
                     <TextBlock Text="Link" />
                 </ToggleButton>
-                <ToggleButton Grid.Column="5"
+                <ToggleButton Grid.Column="6"
                               x:Name="TrajectoryVisibilityToggle"
                               Width="66"
                               Margin="3,0,0,0"
                               Style="{StaticResource SegmentToggleStyle}"
-                              IsChecked="True">
+                              IsChecked="{Binding IsTrajectoryVisible}">
                     <TextBlock Text="轨迹" />
                 </ToggleButton>
-                <StackPanel Grid.Column="6"
+                <StackPanel Grid.Column="7"
                             Margin="8,0,0,0"
                             Orientation="Horizontal">
                     <Button Width="36"
@@ -377,7 +406,7 @@
                                                    Foreground="#60A5FA" />
                                          <TextBlock Grid.Column="1"
                                                     x:Name="SceneResourceName"
-                                                    Text="KR500_ROBOT"
+                                                    Text="{Binding SceneResourceName}"
                                                     Foreground="#D9E0EA"
                                                    FontSize="11"
                                                    VerticalAlignment="Center" />
@@ -387,7 +416,7 @@
                                                 Background="#173B32"
                                                 CornerRadius="10">
                                              <TextBlock x:Name="SceneResourceStatus"
-                                                        Text="已加载"
+                                                        Text="{Binding SceneResourceStatus}"
                                                         Foreground="#6EE7B7"
                                                        FontSize="9"
                                                        HorizontalAlignment="Center"
@@ -446,7 +475,8 @@
                                     MaxWidth="430"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    Opacity="0.9">
+                                    Opacity="0.9"
+                                    Visibility="{Binding ViewerEmptyVisibility}">
                             <Border Width="64"
                                     Height="64"
                                     HorizontalAlignment="Center"
@@ -518,7 +548,7 @@
                                                Width="36"
                                                Height="32"
                                                Style="{StaticResource ChromeToggleStyle}"
-                                               IsChecked="True"
+                                               IsChecked="{Binding IsGridVisible}"
                                                ToolTip="显示网格">
                                     <TextBlock Text="&#xE80F;"
                                                FontFamily="Segoe MDL2 Assets"
@@ -528,7 +558,8 @@
                                          Width="36"
                                          Height="32"
                                          Style="{StaticResource ChromeButtonStyle}"
-                                         ToolTip="适合窗口">
+                                         ToolTip="适合窗口"
+                                         Command="{Binding FitViewCommand}">
                                     <TextBlock Text="&#xE8A3;"
                                                FontFamily="Segoe MDL2 Assets"
                                                FontSize="13" />
@@ -575,7 +606,7 @@
                                  Grid.Column="1"
                                  Width="9"
                                  Height="9"
-                                Background="{StaticResource SuccessBrush}"
+                                Background="{Binding RobotConnectionBrush}"
                                 CornerRadius="5"
                                 VerticalAlignment="Center"
                                 ToolTip="机器人已连接" />
@@ -609,10 +640,9 @@
                                                        Style="{StaticResource CaptionStyle}" />
                                              <ComboBox x:Name="ArmComboBox"
                                                        Margin="0,5,0,12"
-                                                       SelectedIndex="0">
-                                                 <ComboBoxItem Content="Arm 1 · KR500" />
-                                                <ComboBoxItem Content="Arm 2" />
-                                            </ComboBox>
+                                                       ItemsSource="{Binding ArmItems}"
+                                                       SelectedIndex="{Binding SelectedArmIndex}"
+                                                       IsEnabled="{Binding CanInteract}" />
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
@@ -664,7 +694,7 @@
                                                            VerticalAlignment="Center" />
                                                  <TextBlock x:Name="JogStepText"
                                                             Grid.Column="1"
-                                                            Text="1.000 °/s"
+                                                            Text="{Binding JogStepText}"
                                                            Foreground="{StaticResource TextBrush}"
                                                            FontWeight="SemiBold"
                                                            HorizontalAlignment="Center" />
@@ -674,7 +704,7 @@
                                                            VerticalAlignment="Center" />
                                             </Grid>
                                              <Slider x:Name="JogStepSlider"
-                                                     Value="35"
+                                                     Value="{Binding JogStep}"
                                                      Minimum="1"
                                                      Maximum="100"
                                                      Margin="0,0,0,14" />
@@ -692,18 +722,20 @@
                                                          <Button x:Name="JogNegative0"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[0]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A1" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue0"
-                                                                        Text="0.000°"
+                                                                        Text="{Binding JointValues[0]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive0"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[0]}" />
                                                     </Grid>
                                                 </Border>
                                                 <Border Margin="5,0 0,5"
@@ -719,18 +751,20 @@
                                                          <Button x:Name="JogNegative1"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[1]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A2" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue1"
-                                                                        Text="−45.000°"
+                                                                        Text="{Binding JointValues[1]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive1"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[1]}" />
                                                     </Grid>
                                                 </Border>
                                                 <Border Margin="0,5 5,0"
@@ -746,18 +780,20 @@
                                                          <Button x:Name="JogNegative2"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[2]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A3" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue2"
-                                                                        Text="60.000°"
+                                                                        Text="{Binding JointValues[2]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive2"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[2]}" />
                                                     </Grid>
                                                 </Border>
                                                 <Border Margin="5,5 0,0"
@@ -773,18 +809,20 @@
                                                          <Button x:Name="JogNegative3"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[3]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A4" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue3"
-                                                                        Text="0.000°"
+                                                                        Text="{Binding JointValues[3]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive3"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[3]}" />
                                                     </Grid>
                                                 </Border>
                                                 <Border Margin="0,5 5,0"
@@ -800,18 +838,20 @@
                                                          <Button x:Name="JogNegative4"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[4]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A5" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue4"
-                                                                        Text="0.000°"
+                                                                        Text="{Binding JointValues[4]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive4"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[4]}" />
                                                     </Grid>
                                                 </Border>
                                                 <Border Margin="5,5 0,0"
@@ -827,18 +867,20 @@
                                                          <Button x:Name="JogNegative5"
                                                                  Grid.Column="0"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="−" />
+                                                                 Content="−"
+                                                                 Command="{Binding JogNegativeCommands[5]}" />
                                                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                              <TextBlock Text="A6" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
                                                              <TextBlock x:Name="JointValue5"
-                                                                        Text="0.000°"
+                                                                        Text="{Binding JointValues[5]}"
                                                                         FontWeight="SemiBold"
                                                                         HorizontalAlignment="Center" />
                                                          </StackPanel>
                                                          <Button x:Name="JogPositive5"
                                                                  Grid.Column="2"
                                                                  Style="{StaticResource JogButtonStyle}"
-                                                                 Content="+" />
+                                                                 Content="+"
+                                                                 Command="{Binding JogPositiveCommands[5]}" />
                                                     </Grid>
                                                 </Border>
                                             </UniformGrid>
@@ -859,19 +901,19 @@
                                                     <TextBlock Text="X / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PoseXTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="1245.000" />
+                                                              Text="{Binding PoseX, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                                  <StackPanel Grid.Column="1" Margin="5,0">
                                                      <TextBlock Text="Y / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PoseYTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="380.000" />
+                                                              Text="{Binding PoseY, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                                  <StackPanel Grid.Column="2" Margin="5,0,0,0">
                                                      <TextBlock Text="Z / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PoseZTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="1080.000" />
+                                                              Text="{Binding PoseZ, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                             </Grid>
                                             <Grid Margin="0,10,0,0">
@@ -883,20 +925,22 @@
                                                  <TextBox x:Name="PoseRxTextBox"
                                                           Grid.Column="0"
                                                           Margin="0,0,5,0"
-                                                          Text="0.000°" />
+                                                          Text="{Binding PoseRx, UpdateSourceTrigger=PropertyChanged}" />
                                                  <TextBox x:Name="PoseRyTextBox"
                                                           Grid.Column="1"
                                                           Margin="5,0"
-                                                          Text="−90.000°" />
+                                                          Text="{Binding PoseRy, UpdateSourceTrigger=PropertyChanged}" />
                                                  <TextBox x:Name="PoseRzTextBox"
                                                           Grid.Column="2"
                                                           Margin="5,0,0,0"
-                                                          Text="0.000°" />
+                                                          Text="{Binding PoseRz, UpdateSourceTrigger=PropertyChanged}" />
                                              </Grid>
                                              <Button x:Name="ApplyPoseButton"
                                                      Margin="0,12,0,0"
                                                      Style="{StaticResource PrimaryButtonStyle}"
-                                                     Content="应用末端位姿" />
+                                                     Content="应用末端位姿"
+                                                     Command="{Binding ApplyPoseCommand}"
+                                                     IsEnabled="{Binding CanInteract}" />
                                          </StackPanel>
                                      </Border>
 
@@ -910,17 +954,23 @@
                                                  Grid.Column="0"
                                                  Margin="0,0,4,0"
                                                  Style="{StaticResource BaseButtonStyle}"
-                                                 Content="记录点位" />
+                                                 Content="记录点位"
+                                                 Command="{Binding RecordPointCommand}"
+                                                 IsEnabled="{Binding CanInteract}" />
                                          <Button x:Name="HomeButton"
                                                  Grid.Column="1"
                                                  Margin="4,0"
                                                  Style="{StaticResource BaseButtonStyle}"
-                                                 Content="回到 Home" />
+                                                 Content="回到 Home"
+                                                 Command="{Binding ResetRobotCommand}"
+                                                 IsEnabled="{Binding CanInteract}" />
                                          <Button x:Name="SaveTeachPointButton"
                                                  Grid.Column="2"
                                                  Margin="4,0,0,0"
                                                  Style="{StaticResource PrimaryButtonStyle}"
-                                                 Content="保存示教点" />
+                                                 Content="保存示教点"
+                                                 Command="{Binding SaveTeachPointsCommand}"
+                                                 IsEnabled="{Binding CanSaveTeachPoints}" />
                                     </Grid>
                                 </StackPanel>
                             </ScrollViewer>
@@ -953,7 +1003,7 @@
                                                 </Ellipse>
                                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                                      <TextBlock x:Name="CollisionCoverageText"
-                                                                Text="0%"
+                                                                Text="{Binding CollisionCoverageText}"
                                                                 FontSize="20"
                                                                FontWeight="SemiBold"
                                                                HorizontalAlignment="Center" />
@@ -968,12 +1018,12 @@
                                                            Style="{StaticResource SectionTitleStyle}" />
                                                  <TextBlock x:Name="CollisionCoverageDetail"
                                                             Margin="0,5,0,0"
-                                                            Text="尚未生成碰撞体"
+                                                            Text="{Binding CollisionCoverageDetail}"
                                                            Foreground="{StaticResource MutedTextBrush}"
                                                            FontSize="11" />
                                                  <ProgressBar x:Name="CollisionCoverageProgress"
                                                               Margin="0,10,0,0"
-                                                              Value="0" />
+                                                              Value="{Binding CollisionCoverageProgress}" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -1000,56 +1050,25 @@
                                                 <TextBlock Grid.Column="2" Text="状态" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Right" />
                                             </Grid>
                                              <Border Height="1" Margin="0,7" Background="{StaticResource BorderBrush}" />
-                                             <StackPanel x:Name="CollisionLinkListHost">
-                                             <Grid Height="36">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="72" />
-                                                    <ColumnDefinition Width="58" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="AXIS2" VerticalAlignment="Center" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
-                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
-                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                            </Grid>
-                                            <Grid Height="36">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="72" />
-                                                    <ColumnDefinition Width="58" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="AXIS3" VerticalAlignment="Center" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
-                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
-                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                            </Grid>
-                                            <Grid Height="36">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="72" />
-                                                    <ColumnDefinition Width="58" />
-                                                </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="AXIS6" VerticalAlignment="Center" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
-                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
-                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                </Border>
-                                            </Grid>
-                                            <Grid Height="36">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="72" />
-                                                    <ColumnDefinition Width="58" />
-                                                </Grid.ColumnDefinitions>
-                                                 <TextBlock Grid.Column="0" Text="FLANGE" VerticalAlignment="Center" FontSize="11" />
-                                                 <TextBlock Grid.Column="1" Text="—" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11" />
-                                                 <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#FFF7E6" CornerRadius="10">
-                                                     <TextBlock Text="待生成" Foreground="#B45309" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                 </Border>
-                                             </Grid>
-                                             </StackPanel>
+                                             <ItemsControl x:Name="CollisionLinkListHost"
+                                                           ItemsSource="{Binding CollisionLinkRows}">
+                                                 <ItemsControl.ItemTemplate>
+                                                     <DataTemplate>
+                                                         <Grid Height="36">
+                                                             <Grid.ColumnDefinitions>
+                                                                 <ColumnDefinition Width="*" />
+                                                                 <ColumnDefinition Width="72" />
+                                                                 <ColumnDefinition Width="58" />
+                                                             </Grid.ColumnDefinitions>
+                                                             <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" FontSize="11" />
+                                                             <TextBlock Grid.Column="1" Text="{Binding HullCountText}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
+                                                             <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#F1F5F9" CornerRadius="10">
+                                                                 <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                             </Border>
+                                                         </Grid>
+                                                     </DataTemplate>
+                                                 </ItemsControl.ItemTemplate>
+                                             </ItemsControl>
                                          </StackPanel>
                                      </Border>
 
@@ -1078,12 +1097,12 @@
                                             </Grid>
                                              <ComboBox x:Name="CollisionLinkComboBox"
                                                        Margin="0,10,0,0"
-                                                       SelectedIndex="0">
-                                                 <ComboBoxItem Content="FLANGE · 0.72 MB" />
-                                                <ComboBoxItem Content="AXIS1 · 1.84 MB" />
-                                            </ComboBox>
+                                                       ItemsSource="{Binding CollisionLinkItems}"
+                                                       SelectedItem="{Binding SelectedCollisionLink}"
+                                                       IsEnabled="{Binding CanEditCollisionLink}" />
                                             <Grid Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
@@ -1091,13 +1110,28 @@
                                                          Grid.Column="0"
                                                          Margin="0,0,4,0"
                                                          Style="{StaticResource BaseButtonStyle}"
-                                                         Content="生成 / 重新生成" />
+                                                         Content="{Binding GenerateHullsContent}"
+                                                         Command="{Binding GenerateHullsCommand}"
+                                                         IsEnabled="{Binding CanGenerateHulls}" />
                                                  <Button x:Name="ConfirmHullsButton"
                                                          Grid.Column="1"
-                                                         Margin="4,0,0,0"
+                                                         Margin="4,0"
                                                          Style="{StaticResource PrimaryButtonStyle}"
-                                                         Content="确认预览" />
+                                                         Content="确认预览"
+                                                         Command="{Binding ConfirmHullsCommand}"
+                                                         IsEnabled="{Binding CanInteract}" />
+                                                 <Button x:Name="DeleteHullsButton"
+                                                         Grid.Column="2"
+                                                         Margin="4,0,0,0"
+                                                         Style="{StaticResource BaseButtonStyle}"
+                                                         Content="删除凸包"
+                                                         Command="{Binding DeleteLinkHullsCommand}"
+                                                         IsEnabled="{Binding CanInteract}" />
                                             </Grid>
+                                            <ProgressBar x:Name="DecomposeProgressBar"
+                                                         Margin="0,10,0,0"
+                                                         Height="6"
+                                                         Value="{Binding DecomposeProgress}" />
                                         </StackPanel>
                                     </Border>
 
@@ -1112,43 +1146,151 @@
                                                          Padding="8,0"
                                                         HorizontalAlignment="Right"
                                                         Style="{StaticResource BaseButtonStyle}"
-                                                        Content="+ 添加" />
+                                                        Content="+ 添加"
+                                                        Command="{Binding AddObstacleCommand}"
+                                                        IsEnabled="{Binding CanInteract}" />
                                             </Grid>
-                                            <Border Padding="10" Background="#FFF8ED" BorderBrush="#FDE3B2" BorderThickness="1" CornerRadius="7">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="34" />
-                                                        <ColumnDefinition Width="*" />
-                                                        <ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <Border Grid.Column="0" Width="24" Height="24" Background="#F59E0B" CornerRadius="4" />
-                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                                        <TextBlock Text="工作台障碍物" FontWeight="SemiBold" FontSize="11" />
-                                                        <TextBlock Text="2750, 0, 1470  ·  300 × 300 × 400 mm" Style="{StaticResource CaptionStyle}" FontSize="9" />
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="2" Text="Environment" Foreground="#B45309" FontSize="9" VerticalAlignment="Center" />
-                                                </Grid>
-                                            </Border>
+                                            <ComboBox x:Name="ObstacleComboBox"
+                                                      Margin="0,0,8,0"
+                                                      ItemsSource="{Binding ObstacleItems}"
+                                                      SelectedItem="{Binding SelectedObstacleItem}" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="X / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleXTextBox" Margin="0,5,0,0" Text="{Binding ObstacleX, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0">
+                                                    <TextBlock Text="Y / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleYTextBox" Margin="0,5,0,0" Text="{Binding ObstacleY, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                                    <TextBlock Text="Z / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleZTextBox" Margin="0,5,0,0" Text="{Binding ObstacleZ, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                            </Grid>
                                             <Grid Margin="0,10,0,0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Grid.Column="0" Text="相邻 Link 豁免" Foreground="#475569" FontSize="11" VerticalAlignment="Center" />
-                                                <CheckBox Grid.Column="1" IsChecked="True" Content="启用" />
+                                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="宽 / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleWidthTextBox" Margin="0,5,0,0" Text="{Binding ObstacleWidth, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0">
+                                                    <TextBlock Text="深 / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleDepthTextBox" Margin="0,5,0,0" Text="{Binding ObstacleDepth, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                                    <TextBlock Text="高 / mm" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox x:Name="ObstacleHeightTextBox" Margin="0,5,0,0" Text="{Binding ObstacleHeight, UpdateSourceTrigger=PropertyChanged}" />
+                                                </StackPanel>
                                             </Grid>
-                                            <Button Margin="0,10,0,0"
-                                                    Style="{StaticResource BaseButtonStyle}"
-                                                    Content="管理碰撞豁免规则" />
-                                             <Button x:Name="CollisionCheckButton"
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button x:Name="UpdateObstacleButton"
+                                                        Grid.Column="0"
+                                                        Margin="0,0,4,0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="更新障碍物"
+                                                        Command="{Binding UpdateObstacleCommand}"
+                                                        IsEnabled="{Binding CanEditObstacle}" />
+                                                <Button x:Name="DeleteObstacleButton"
+                                                        Grid.Column="1"
+                                                        Margin="4,0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="删除障碍物"
+                                                        Command="{Binding DeleteObstacleCommand}"
+                                                        IsEnabled="{Binding CanEditObstacle}" />
+                                                <Button x:Name="ResetObstacleButton"
+                                                        Grid.Column="2"
+                                                        Margin="4,0,0,0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="重置默认"
+                                                        Command="{Binding ResetObstacleFieldsCommand}"
+                                                        IsEnabled="{Binding CanInteract}" />
+                                            </Grid>
+<Button x:Name="CollisionCheckButton"
                                                      Margin="0,8,0,0"
                                                      Style="{StaticResource PrimaryButtonStyle}"
-                                                     Content="执行当前姿态碰撞检查" />
+                                                     Content="执行当前姿态碰撞检查"
+                                                     Command="{Binding RunCollisionCheckCommand}"
+                                                     IsEnabled="{Binding CanPlan}" />
                                              <TextBlock x:Name="CollisionStatusText"
                                                         Margin="0,8,0,0"
-                                                        Text="等待操作"
+                                                        Text="{Binding CollisionStatusText}"
                                                         TextWrapping="Wrap"
                                                         Style="{StaticResource CaptionStyle}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <TextBlock Text="碰撞豁免对"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                <Border HorizontalAlignment="Right"
+                                                        Background="#EAF1FF"
+                                                        CornerRadius="10"
+                                                        Padding="8,4">
+                                                    <TextBlock x:Name="IgnoredPairCountText"
+                                                               Text="{Binding IgnoredPairCountText}"
+                                                               Foreground="#1D4ED8"
+                                                               FontSize="9"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <ComboBox x:Name="PairOwner1ComboBox"
+                                                          Grid.Column="0"
+                                                          Margin="0,0,4,0"
+                                                          ItemsSource="{Binding PairOwner1Items}"
+                                                          SelectedItem="{Binding SelectedOwner1}" />
+                                                <ComboBox x:Name="PairOwner2ComboBox"
+                                                          Grid.Column="1"
+                                                          Margin="4,0,0,0"
+                                                          ItemsSource="{Binding PairOwner2Items}"
+                                                          SelectedItem="{Binding SelectedOwner2}" />
+                                            </Grid>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button x:Name="IgnorePairButton"
+                                                        Grid.Column="0"
+                                                        Margin="0,0,4,0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="忽略该对"
+                                                        Command="{Binding IgnorePairCommand}"
+                                                        IsEnabled="{Binding CanEditPair}" />
+                                                <Button x:Name="CheckPairButton"
+                                                        Grid.Column="1"
+                                                        Margin="4,0,0,0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="恢复检查"
+                                                        Command="{Binding CheckPairCommand}"
+                                                        IsEnabled="{Binding CanEditPair}" />
+                                            </Grid>
+                                            <ListBox x:Name="IgnoredPairListBox"
+                                                     Margin="0,10,0,0"
+                                                     Height="110"
+                                                     FontSize="10"
+                                                     ItemsSource="{Binding IgnoredPairItems}" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -1214,7 +1356,9 @@
                                              <Button x:Name="UseCurrentPoseButton"
                                                      Margin="0,10,0,0"
                                                      Style="{StaticResource BaseButtonStyle}"
-                                                     Content="使用当前机器人姿态" />
+                                                     Content="使用当前机器人姿态"
+                                                     Command="{Binding UseCurrentPoseCommand}"
+                                                     IsEnabled="{Binding CanInteract}" />
                                         </StackPanel>
                                     </Border>
 
@@ -1241,19 +1385,19 @@
                                                      <TextBlock Text="X / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PlanTargetXTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="795.000" />
+                                                              Text="{Binding PlanTargetX, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                                  <StackPanel Grid.Column="1" Margin="4,0">
                                                      <TextBlock Text="Y / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PlanTargetYTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="380.000" />
+                                                              Text="{Binding PlanTargetY, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                                  <StackPanel Grid.Column="2" Margin="4,0,0,0">
                                                      <TextBlock Text="Z / mm" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PlanTargetZTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="1080.000" />
+                                                              Text="{Binding PlanTargetZ, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                             </Grid>
                                             <Grid Margin="0,10,0,0">
@@ -1265,15 +1409,15 @@
                                                  <TextBox x:Name="PlanTargetRxTextBox"
                                                           Grid.Column="0"
                                                           Margin="0,0,4,0"
-                                                          Text="0.000°" />
+                                                          Text="{Binding PlanTargetRx, UpdateSourceTrigger=PropertyChanged}" />
                                                  <TextBox x:Name="PlanTargetRyTextBox"
                                                           Grid.Column="1"
                                                           Margin="4,0"
-                                                          Text="−90.000°" />
+                                                          Text="{Binding PlanTargetRy, UpdateSourceTrigger=PropertyChanged}" />
                                                  <TextBox x:Name="PlanTargetRzTextBox"
                                                           Grid.Column="2"
                                                           Margin="4,0,0,0"
-                                                          Text="0.000°" />
+                                                          Text="{Binding PlanTargetRz, UpdateSourceTrigger=PropertyChanged}" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -1286,23 +1430,28 @@
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="IK 后端" Style="{StaticResource CaptionStyle}" />
+                                                     <ComboBox x:Name="IkBackendComboBox"
+                                                               Margin="0,5,0,0"
+                                                               ItemsSource="{Binding IkBackendItems}"
+                                                               SelectedItem="{Binding SelectedIkBackend}" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0">
                                                     <TextBlock Text="规划器" Style="{StaticResource CaptionStyle}" />
                                                      <ComboBox x:Name="PlannerComboBox"
                                                                Margin="0,5,0,0"
-                                                               SelectedIndex="0">
-                                                         <ComboBoxItem Content="OMPL" />
-                                                        <ComboBoxItem Content="RRTConnect" />
-                                                    </ComboBox>
+                                                               ItemsSource="{Binding PlannerItems}"
+                                                               SelectedItem="{Binding SelectedPlanner}" />
                                                 </StackPanel>
-                                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                                <StackPanel Grid.Column="2" Margin="4,0,0,0">
                                                     <TextBlock Text="碰撞后端" Style="{StaticResource CaptionStyle}" />
                                                      <ComboBox x:Name="CollisionBackendComboBox"
                                                                Margin="0,5,0,0"
-                                                               SelectedIndex="0">
-                                                         <ComboBoxItem Content="FCL" />
-                                                    </ComboBox>
+                                                               ItemsSource="{Binding CollisionBackendItems}"
+                                                               SelectedItem="{Binding SelectedCollisionBackend}" />
                                                 </StackPanel>
                                             </Grid>
                                             <Grid Margin="0,10,0,0">
@@ -1314,22 +1463,95 @@
                                                     <TextBlock Text="碰撞采样间隔" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="CollisionResolutionTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="0.05 rad" />
+                                                              Text="{Binding CollisionResolution, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1" Margin="4,0,0,0">
                                                     <TextBlock Text="超时时间" Style="{StaticResource CaptionStyle}" />
                                                      <TextBox x:Name="PlanTimeoutTextBox"
                                                               Margin="0,5,0,0"
-                                                              Text="10.0 s" />
+                                                              Text="{Binding PlanTimeout, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                             </Grid>
                                             <CheckBox Margin="0,12,0,0" IsChecked="True" Content="启用已确认的 Link 碰撞体" />
                                             <CheckBox Margin="0,7,0,0" IsChecked="True" Content="保留当前末端姿态" />
+                                             <Button x:Name="SdkCheckIkButton"
+                                                     Margin="0,12,0,0"
+                                                     Style="{StaticResource BaseButtonStyle}"
+                                                     Content="全末端 IK 检查"
+                                                     Command="{Binding CheckAllTipIkCommand}"
+                                                     IsEnabled="{Binding CanInteract}" />
+                                             <TextBlock x:Name="SdkCheckIkStatusText"
+                                                        Margin="0,8,0,0"
+                                                        Text="{Binding SdkCheckIkStatusText}"
+                                                        TextWrapping="Wrap"
+                                                        Style="{StaticResource CaptionStyle}" />
+                                             <Border Margin="0,14,0,0"
+                                                     Padding="10"
+                                                     Background="#F8FAFC"
+                                                     CornerRadius="7">
+                                                 <StackPanel>
+                                                     <Grid Margin="0,0,0,10">
+                                                         <TextBlock Text="单关节规划"
+                                                                    FontSize="12"
+                                                                    FontWeight="SemiBold" />
+                                                         <Border HorizontalAlignment="Right"
+                                                                 Background="#EAF1FF"
+                                                                 CornerRadius="10"
+                                                                 Padding="8,4">
+                                                             <TextBlock Text="SDK DIRECT"
+                                                                        Foreground="#1D4ED8"
+                                                                        FontSize="8"
+                                                                        FontWeight="SemiBold" />
+                                                         </Border>
+                                                     </Grid>
+                                                     <TextBlock Text="关节" Style="{StaticResource CaptionStyle}" />
+                                                     <ComboBox x:Name="SdkJointComboBox"
+                                                               Margin="0,5,0,8"
+                                                               ItemsSource="{Binding SdkJointItems}"
+                                                               SelectedItem="{Binding SelectedSdkJoint}" />
+                                                     <Grid>
+                                                         <Grid.ColumnDefinitions>
+                                                             <ColumnDefinition Width="*" />
+                                                             <ColumnDefinition Width="*" />
+                                                         </Grid.ColumnDefinitions>
+                                                         <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                             <TextBlock Text="目标值 (rad / mm)" Style="{StaticResource CaptionStyle}" />
+                                                             <TextBox x:Name="SdkGoalTextBox" Margin="0,5,0,0" Text="{Binding SdkGoal, UpdateSourceTrigger=PropertyChanged}" />
+                                                         </StackPanel>
+                                                         <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                                             <TextBlock Text="速度 / 加速度" Style="{StaticResource CaptionStyle}" />
+                                                             <Grid Margin="0,5,0,0">
+                                                                 <Grid.ColumnDefinitions>
+                                                                     <ColumnDefinition Width="*" />
+                                                                     <ColumnDefinition Width="*" />
+                                                                 </Grid.ColumnDefinitions>
+                                                                 <TextBox x:Name="SdkVelocityTextBox"
+                                                                          Grid.Column="0"
+                                                                          Margin="0,0,3,0"
+                                                                          Text="{Binding SdkVelocity, UpdateSourceTrigger=PropertyChanged}" />
+                                                                 <TextBox x:Name="SdkAccelerationTextBox"
+                                                                          Grid.Column="1"
+                                                                          Margin="3,0,0,0"
+                                                                          Text="{Binding SdkAcceleration, UpdateSourceTrigger=PropertyChanged}" />
+                                                             </Grid>
+                                                         </StackPanel>
+                                                     </Grid>
+                                                     <Button x:Name="SdkJointPlanButton"
+                                                             Margin="0,10,0,0"
+                                                             Height="36"
+                                                             Style="{StaticResource PrimaryButtonStyle}"
+                                                             Content="规划单关节轨迹"
+                                                             Command="{Binding PlanSingleJointCommand}"
+                                                             IsEnabled="{Binding CanInteract}" />
+                                                 </StackPanel>
+                                             </Border>
                                              <Button x:Name="PlanPathButton"
                                                      Margin="0,14,0,0"
                                                      Height="42"
                                                      Style="{StaticResource PrimaryButtonStyle}"
-                                                     Content="计算无碰撞路径" />
+                                                     Content="计算无碰撞路径"
+                                                     Command="{Binding PlanPathCommand}"
+                                                     IsEnabled="{Binding CanPlan}" />
                                         </StackPanel>
                                     </Border>
 
@@ -1339,12 +1561,12 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <Border Width="8" Height="8" Background="#F59E0B" CornerRadius="4" VerticalAlignment="Center" />
                                                      <TextBlock x:Name="PlanStatusText"
-                                                                Text="等待规划"
+                                                                Text="{Binding PlanStatusText}"
                                                                 Margin="7,0,0,0"
                                                                 Style="{StaticResource SectionTitleStyle}" />
                                                 </StackPanel>
                                                      <TextBlock x:Name="PlanBackendText"
-                                                                Text="OMPL / FCL"
+                                                                Text="{Binding PlanBackendText}"
                                                                 HorizontalAlignment="Right"
                                                                 Style="{StaticResource CaptionStyle}" />
                                             </Grid>
@@ -1352,21 +1574,21 @@
                                                  <StackPanel>
                                                      <TextBlock Text="路径长度" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
                                                      <TextBlock x:Name="PathLengthText"
-                                                                Text="—"
+                                                                Text="{Binding PathLengthText}"
                                                                 Style="{StaticResource MetricStyle}"
                                                                 HorizontalAlignment="Center" />
                                                  </StackPanel>
                                                  <StackPanel>
                                                      <TextBlock Text="预计耗时" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
                                                      <TextBlock x:Name="PathDurationText"
-                                                                Text="—"
+                                                                Text="{Binding PathDurationText}"
                                                                 Style="{StaticResource MetricStyle}"
                                                                 HorizontalAlignment="Center" />
                                                  </StackPanel>
                                                  <StackPanel>
                                                      <TextBlock Text="采样节点" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
                                                      <TextBlock x:Name="PathSamplesText"
-                                                                Text="—"
+                                                                Text="{Binding PathSamplesText}"
                                                                 Style="{StaticResource MetricStyle}"
                                                                 HorizontalAlignment="Center" />
                                                  </StackPanel>
@@ -1384,15 +1606,16 @@
                                                 <TextBlock Grid.Column="0" Text="轨迹播放" Style="{StaticResource SectionTitleStyle}" />
                                                  <TextBlock x:Name="PlaybackTimeText"
                                                             Grid.Column="1"
-                                                            Text="0.000 / 0.000 s"
+                                                            Text="{Binding PlaybackTimeText}"
                                                             Style="{StaticResource CaptionStyle}"
                                                             VerticalAlignment="Center" />
                                             </Grid>
                                              <Slider x:Name="PlaybackSlider"
                                                      Margin="0,14,0,8"
                                                      Minimum="0"
-                                                     Maximum="1"
-                                                     IsEnabled="False" />
+                                                     Maximum="{Binding PlaybackMaximum}"
+                                                     Value="{Binding PlaybackPosition}"
+                                                     IsEnabled="{Binding CanControlPlayback}" />
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
@@ -1403,17 +1626,23 @@
                                                          Grid.Column="0"
                                                          Margin="0,0,4,0"
                                                          Style="{StaticResource BaseButtonStyle}"
-                                                         Content="回到起点" />
+                                                         Content="回到起点"
+                                                         Command="{Binding PlaybackRestartCommand}"
+                                                         IsEnabled="{Binding CanControlPlayback}" />
                                                  <Button x:Name="PlaybackPlayButton"
                                                          Grid.Column="1"
                                                          Margin="4,0"
                                                          Style="{StaticResource PrimaryButtonStyle}"
-                                                         Content="播放" />
+                                                         Content="{Binding PlaybackPlayText}"
+                                                         Command="{Binding PlaybackPlayCommand}"
+                                                         IsEnabled="{Binding CanControlPlayback}" />
                                                  <Button x:Name="PlaybackStopButton"
                                                          Grid.Column="2"
                                                          Margin="4,0,0,0"
                                                          Style="{StaticResource BaseButtonStyle}"
-                                                         Content="停止 / 取消" />
+                                                         Content="停止 / 取消"
+                                                         Command="{Binding PlaybackStopCommand}"
+                                                         IsEnabled="{Binding CanStopPlayback}" />
                                             </Grid>
                                         </StackPanel>
                                     </Border>
@@ -1437,8 +1666,8 @@
                              <TextBlock x:Name="GlobalStatusText"
                                         Grid.Column="1"
                                         Margin="8,0,0,0"
-                                        Text="安全状态：可操作"
-                                       Foreground="#475569"
+                                        Text="{Binding GlobalStatusText}"
+                                       Foreground="{Binding GlobalStatusBrush}"
                                        FontSize="10"
                                        VerticalAlignment="Center" />
                             <TextBlock Grid.Column="2"
@@ -1472,7 +1701,7 @@
                  <TextBlock x:Name="RobotDofText"
                             Grid.Column="1"
                             Margin="22,0,0,0"
-                            Text="KR500 · 6 DOF"
+                            Text="{Binding RobotDofText}"
                            Foreground="#718096"
                            FontSize="9"
                            VerticalAlignment="Center" />
