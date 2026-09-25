@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnyCADSdkVersion Condition="'$(AnyCADSdkVersion)' == ''">2026.9.22.1736</AnyCADSdkVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AnyCAD.Rapid.NET" Version="$(AnyCADSdkVersion)" />
+    <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\WinForms\RapidRobot\BrepLinkMesh.cs" Link="Core\BrepLinkMesh.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\CollisionDemoModel.cs" Link="Core\CollisionDemoModel.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\Manual3AFactory.cs" Link="Core\Manual3AFactory.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\ManualKr500Factory.cs" Link="Core\ManualKr500Factory.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\RobotAssemblyPose.cs" Link="Core\RobotAssemblyPose.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\RobotControler.cs" Link="Core\RobotControler.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\RobotLoadResult.cs" Link="Core\RobotLoadResult.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\StlLinkMesh.cs" Link="Core\StlLinkMesh.cs" />
+    <Compile Include="..\..\WinForms\RapidRobot\UrdfVisualMesh.cs" Link="Core\UrdfVisualMesh.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\Model\**\*.urdf" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Model\**\*.stl" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Model\**\*.brep" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

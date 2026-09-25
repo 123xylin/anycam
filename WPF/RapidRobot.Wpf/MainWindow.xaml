@@ -1,0 +1,1499 @@
+<Window x:Class="RapidRobot.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AnyRobot Studio"
+        Width="1600"
+        Height="960"
+        MinWidth="1280"
+        MinHeight="760"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource CanvasBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64" />
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="{StaticResource ChromeBrush}">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Width="38"
+                        Height="38"
+                        Background="{StaticResource AccentBrush}"
+                        CornerRadius="10">
+                    <Grid>
+                        <Border Width="17"
+                                Height="17"
+                                BorderBrush="White"
+                                BorderThickness="2"
+                                CornerRadius="5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        <Ellipse Width="5"
+                                 Height="5"
+                                 Fill="#67E8F9"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                            Margin="12,0 24,0"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="AnyRobot Studio"
+                               Foreground="White"
+                               FontSize="16"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="ROBOT MOTION WORKSPACE"
+                               Foreground="#7F8CA3"
+                               FontFamily="Segoe UI"
+                               FontSize="9" />
+                </StackPanel>
+
+                <Border Grid.Column="2"
+                        Width="310"
+                        Height="38"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="{StaticResource ChromeSecondaryBrush}"
+                        BorderBrush="#2A364A"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="11,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="28" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="24" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="&#xE8B7;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15"
+                                   Foreground="#9CA9BC"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="Kr500_Assembly.rbt"
+                                       Foreground="#E6EBF2"
+                                       FontSize="12" />
+                            <TextBlock Text="6 轴 · 已保存于 10:32"
+                                       Foreground="#758299"
+                                       FontSize="9" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="2"
+                                   Text="&#xE70D;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="10"
+                                   Foreground="#758299"
+                                   VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="3"
+                            Margin="0,0 20,0"
+                            VerticalAlignment="Center">
+                    <Border Height="30"
+                            HorizontalAlignment="Right"
+                            Background="#16243A"
+                            BorderBrush="#2B3B54"
+                            BorderThickness="1"
+                            CornerRadius="15"
+                            Padding="11,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" Fill="#3CCB7F" VerticalAlignment="Center" />
+                            <TextBlock Text="SDK 就绪"
+                                       Margin="7,0 0,0"
+                                       Foreground="#C6D0DE"
+                                       FontSize="11"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="IK: KDL   ·   Plan: OMPL   ·   Collision: FCL"
+                               Margin="0,5,0,0"
+                               HorizontalAlignment="Right"
+                               Foreground="#718096"
+                               FontSize="9" />
+                </StackPanel>
+
+                <Border Grid.Column="4"
+                        Width="1"
+                        Height="30"
+                        Margin="0,0 20,0"
+                        Background="#2A364A"
+                        VerticalAlignment="Center" />
+
+                <Button Grid.Column="5"
+                        x:Name="EmergencyStopButton"
+                        Width="92"
+                        Height="38"
+                        Style="{StaticResource DangerButtonStyle}"
+                        ToolTip="急停">
+                    <StackPanel Orientation="Horizontal">
+                        <Border Width="9" Height="9" Background="White" CornerRadius="2" />
+                        <TextBlock Text="急停"
+                                   Margin="8,0,0,0"
+                                   Foreground="White"
+                                   FontWeight="SemiBold" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1"
+                Background="White"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        x:Name="ImportUrdfButton"
+                        Height="34"
+                        Style="{StaticResource BaseButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE8E5;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="14"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="导入 URDF"
+                                   Margin="7,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="1"
+                        x:Name="ManualAssemblyButton"
+                        Margin="7,0,0,0"
+                        Height="34"
+                        Style="{StaticResource BaseButtonStyle}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE90F;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="14"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="代码装配"
+                                   Margin="7,0,0,0"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Text="&#xE70D;"
+                                   Margin="8,0,0,0"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="9"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <Border Grid.Column="2"
+                        Width="1"
+                        Height="24"
+                        Margin="14,0"
+                        Background="{StaticResource BorderBrush}"
+                        VerticalAlignment="Center" />
+
+                <StackPanel Grid.Column="3"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <ToggleButton Style="{StaticResource SegmentToggleStyle}" IsChecked="True">
+                        <TextBlock Text="选择" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource SegmentToggleStyle}">
+                        <TextBlock Text="移动" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource SegmentToggleStyle}">
+                        <TextBlock Text="旋转" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource SegmentToggleStyle}">
+                        <TextBlock Text="测量" />
+                    </ToggleButton>
+                </StackPanel>
+
+                <ToggleButton Grid.Column="4"
+                              x:Name="LinkVisibilityToggle"
+                              Width="66"
+                              Style="{StaticResource SegmentToggleStyle}"
+                              IsChecked="True">
+                    <TextBlock Text="Link" />
+                </ToggleButton>
+                <ToggleButton Grid.Column="5"
+                              x:Name="TrajectoryVisibilityToggle"
+                              Width="66"
+                              Margin="3,0,0,0"
+                              Style="{StaticResource SegmentToggleStyle}"
+                              IsChecked="True">
+                    <TextBlock Text="轨迹" />
+                </ToggleButton>
+                <StackPanel Grid.Column="6"
+                            Margin="8,0,0,0"
+                            Orientation="Horizontal">
+                    <Button Width="36"
+                            Style="{StaticResource IconButtonStyle}"
+                            ToolTip="撤销">
+                        <TextBlock Text="&#xE7A7;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15" />
+                    </Button>
+                    <Button Width="36"
+                            Style="{StaticResource IconButtonStyle}"
+                            ToolTip="保存项目">
+                        <TextBlock Text="&#xE74E;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="15" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="400" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0">
+                <Border Margin="12,12,0,12"
+                        Background="{StaticResource ViewerBrush}"
+                        BorderBrush="#253147"
+                        BorderThickness="1"
+                        CornerRadius="11">
+                    <Grid ClipToBounds="True">
+                        <ContentControl x:Name="ViewportHost" />
+
+                        <Border Margin="16"
+                                Padding="4"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Background="#E61A2638"
+                                BorderBrush="#334158"
+                                BorderThickness="1"
+                                CornerRadius="9">
+                            <StackPanel Orientation="Horizontal">
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              IsChecked="True"
+                                              ToolTip="选择">
+                                    <TextBlock Text="&#xE721;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              ToolTip="平移">
+                                    <TextBlock Text="&#xE7B4;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              ToolTip="旋转">
+                                    <TextBlock Text="&#xE7B5;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              ToolTip="缩放">
+                                    <TextBlock Text="&#xE71E;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                                <Border Width="1"
+                                        Margin="4,5"
+                                        Background="#3A465A" />
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              ToolTip="测量">
+                                    <TextBlock Text="&#xE9D2;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Width="250"
+                                Height="300"
+                                Margin="16"
+                                Padding="14"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Background="#F21A2638"
+                                BorderBrush="#334158"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="34" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid Grid.Row="0">
+                                    <TextBlock Text="场景资源"
+                                               Foreground="White"
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="&#xE71D;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="12"
+                                               Foreground="#7F8CA3"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <Border Grid.Row="1"
+                                        Height="1"
+                                        Background="#2D394C" />
+                                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                                    <Grid Height="32">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="24" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0"
+                                                   Text="&#xE8B7;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   Foreground="#60A5FA" />
+                                         <TextBlock Grid.Column="1"
+                                                    x:Name="SceneResourceName"
+                                                    Text="KR500_ROBOT"
+                                                    Foreground="#D9E0EA"
+                                                   FontSize="11"
+                                                   VerticalAlignment="Center" />
+                                        <Border Grid.Column="2"
+                                                Width="42"
+                                                Height="20"
+                                                Background="#173B32"
+                                                CornerRadius="10">
+                                             <TextBlock x:Name="SceneResourceStatus"
+                                                        Text="已加载"
+                                                        Foreground="#6EE7B7"
+                                                       FontSize="9"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                    <StackPanel Margin="16,2,0,0">
+                                        <TextBlock Text="BASE"
+                                                   Foreground="#8E9AAD"
+                                                   FontSize="10"
+                                                   Margin="0,7,0,0" />
+                                        <TextBlock Text="AXIS1 — AXIS6"
+                                                   Foreground="#8E9AAD"
+                                                   FontSize="10"
+                                                   Margin="0,7,0,0" />
+                                        <TextBlock Text="Kr500_flange"
+                                                   Foreground="#8E9AAD"
+                                                   FontSize="10"
+                                                   Margin="0,7,0,0" />
+                                        <TextBlock Text="TOOL_FRAME"
+                                                   Foreground="#8E9AAD"
+                                                   FontSize="10"
+                                                   Margin="0,7,0,0" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Border Width="84"
+                                Height="84"
+                                Margin="18"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Background="#CC162235"
+                                BorderBrush="#3A4961"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                            <Grid Margin="8">
+                                <Border Background="#25344A" CornerRadius="4" Padding="4">
+                                    <TextBlock Text="TOP"
+                                               Foreground="#C8D2E0"
+                                               FontSize="9"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="FRONT"
+                                           Foreground="#738198"
+                                           FontSize="8"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Bottom"
+                                           Margin="0,2,0,0" />
+                            </Grid>
+                        </Border>
+
+                        <StackPanel x:Name="ViewerEmptyOverlay"
+                                    MaxWidth="430"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Opacity="0.9">
+                            <Border Width="64"
+                                    Height="64"
+                                    HorizontalAlignment="Center"
+                                    Background="#19263A"
+                                    BorderBrush="#35465E"
+                                    BorderThickness="1"
+                                    CornerRadius="18">
+                                <TextBlock Text="&#xE99A;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="28"
+                                           Foreground="#67E8F9"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <TextBlock Text="AnyCAD 3D 工作区"
+                                       Margin="0,16,0,0"
+                                       Foreground="#E8EDF4"
+                                       FontSize="19"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" />
+                            <TextBlock Text="导入 URDF，或从工具栏选择代码装配模型"
+                                       Margin="0,7,0,0"
+                                       Foreground="#7F8CA3"
+                                       FontSize="12"
+                                       HorizontalAlignment="Center" />
+                            <Border Margin="0,15,0,0"
+                                    HorizontalAlignment="Center"
+                                    Background="#132238"
+                                    BorderBrush="#2B3B53"
+                                    BorderThickness="1"
+                                    CornerRadius="15"
+                                    Padding="12,5">
+                                <TextBlock Text="毫米 (mm)  ·  弧度 (rad)"
+                                           Foreground="#73859F"
+                                           FontSize="9" />
+                            </Border>
+                        </StackPanel>
+
+                        <Border Margin="16"
+                                Padding="12,8"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"
+                                Background="#E6162234"
+                                BorderBrush="#334158"
+                                BorderThickness="1"
+                                CornerRadius="9">
+                            <StackPanel>
+                                <TextBlock Text="世界坐标"
+                                           Foreground="#6F7D92"
+                                           FontSize="9" />
+                                <TextBlock Text="X  1 245.000    Y  380.000    Z  1 080.000"
+                                           Margin="0,4,0,0"
+                                           Foreground="#C6D1DF"
+                                           FontFamily="Consolas"
+                                           FontSize="10" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="16"
+                                Padding="8"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Background="#E6162234"
+                                BorderBrush="#334158"
+                                BorderThickness="1"
+                                CornerRadius="9">
+                            <StackPanel Orientation="Horizontal">
+                                 <ToggleButton x:Name="GridVisibilityToggle"
+                                               Width="36"
+                                               Height="32"
+                                               Style="{StaticResource ChromeToggleStyle}"
+                                               IsChecked="True"
+                                               ToolTip="显示网格">
+                                    <TextBlock Text="&#xE80F;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="13" />
+                                </ToggleButton>
+                                 <Button x:Name="FitViewButton"
+                                         Width="36"
+                                         Height="32"
+                                         Style="{StaticResource ChromeButtonStyle}"
+                                         ToolTip="适合窗口">
+                                    <TextBlock Text="&#xE8A3;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="13" />
+                                </Button>
+                                <Border Width="1"
+                                        Margin="4,5"
+                                        Background="#3A465A" />
+                                <TextBlock Text="60 FPS"
+                                           Margin="7,0,5,0"
+                                           Foreground="#8C99AB"
+                                           FontSize="9"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Border Grid.Column="1"
+                    Background="White"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="70" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="44" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="18,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="机器人控制"
+                                       FontSize="17"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="KR500 · 6 AXIS INDUSTRIAL ROBOT"
+                                       Style="{StaticResource CaptionStyle}"
+                                       FontSize="9" />
+                        </StackPanel>
+                         <Border x:Name="RobotConnectionIndicator"
+                                 Grid.Column="1"
+                                 Width="9"
+                                 Height="9"
+                                Background="{StaticResource SuccessBrush}"
+                                CornerRadius="5"
+                                VerticalAlignment="Center"
+                                ToolTip="机器人已连接" />
+                    </Grid>
+
+                    <TabControl Grid.Row="1"
+                                Margin="14,0"
+                                Style="{StaticResource PanelTabControlStyle}">
+                        <TabItem Header="示教">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="0,14,0,18">
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,12">
+                                                <TextBlock Text="运动控制"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                <Border HorizontalAlignment="Right"
+                                                        Width="62"
+                                                        Height="22"
+                                                        Background="#EAF8F0"
+                                                        CornerRadius="11">
+                                                    <TextBlock Text="已使能"
+                                                               Foreground="#15803D"
+                                                               FontSize="9"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                            <TextBlock Text="机械臂"
+                                                       Style="{StaticResource CaptionStyle}" />
+                                             <ComboBox x:Name="ArmComboBox"
+                                                       Margin="0,5,0,12"
+                                                       SelectedIndex="0">
+                                                 <ComboBoxItem Content="Arm 1 · KR500" />
+                                                <ComboBoxItem Content="Arm 2" />
+                                            </ComboBox>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <ToggleButton Grid.Column="0"
+                                                              Style="{StaticResource SegmentToggleStyle}"
+                                                              IsChecked="True"
+                                                              Content="手动" />
+                                                <ToggleButton Grid.Column="1"
+                                                              Margin="4,0,8,0"
+                                                              Style="{StaticResource SegmentToggleStyle}"
+                                                              Content="自动" />
+                                                <Button Grid.Column="2"
+                                                        Width="36"
+                                                        Padding="0"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="&#xE713;"
+                                                        FontFamily="Segoe MDL2 Assets" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,12">
+                                                <TextBlock Text="关节点动"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                <Border HorizontalAlignment="Right"
+                                                        Background="#F1F5F9"
+                                                        CornerRadius="5"
+                                                        Padding="8,4">
+                                                    <TextBlock Text="JOG"
+                                                               Foreground="#475569"
+                                                               FontSize="9"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid Margin="0,0,0,12">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0"
+                                                           Text="步长"
+                                                           Style="{StaticResource CaptionStyle}"
+                                                           VerticalAlignment="Center" />
+                                                 <TextBlock x:Name="JogStepText"
+                                                            Grid.Column="1"
+                                                            Text="1.000 °/s"
+                                                           Foreground="{StaticResource TextBrush}"
+                                                           FontWeight="SemiBold"
+                                                           HorizontalAlignment="Center" />
+                                                <TextBlock Grid.Column="2"
+                                                           Text="连续"
+                                                           Style="{StaticResource CaptionStyle}"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                             <Slider x:Name="JogStepSlider"
+                                                     Value="35"
+                                                     Minimum="1"
+                                                     Maximum="100"
+                                                     Margin="0,0,0,14" />
+                                            <UniformGrid Columns="2">
+                                                <Border Margin="0,0 5,5"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative0"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A1" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue0"
+                                                                        Text="0.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive0"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border Margin="5,0 0,5"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative1"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A2" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue1"
+                                                                        Text="−45.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive1"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border Margin="0,5 5,0"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative2"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A3" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue2"
+                                                                        Text="60.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive2"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border Margin="5,5 0,0"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative3"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A4" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue3"
+                                                                        Text="0.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive3"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border Margin="0,5 5,0"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative4"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A5" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue4"
+                                                                        Text="0.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive4"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                                <Border Margin="5,5 0,0"
+                                                        Padding="7"
+                                                        Background="#F8FAFC"
+                                                        CornerRadius="7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="28" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="28" />
+                                                        </Grid.ColumnDefinitions>
+                                                         <Button x:Name="JogNegative5"
+                                                                 Grid.Column="0"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="−" />
+                                                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                             <TextBlock Text="A6" Foreground="#64748B" FontSize="9" HorizontalAlignment="Center" />
+                                                             <TextBlock x:Name="JointValue5"
+                                                                        Text="0.000°"
+                                                                        FontWeight="SemiBold"
+                                                                        HorizontalAlignment="Center" />
+                                                         </StackPanel>
+                                                         <Button x:Name="JogPositive5"
+                                                                 Grid.Column="2"
+                                                                 Style="{StaticResource JogButtonStyle}"
+                                                                 Content="+" />
+                                                    </Grid>
+                                                </Border>
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="末端位姿"
+                                                       Style="{StaticResource SectionTitleStyle}" />
+                                            <Grid Margin="0,12,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,5,0">
+                                                    <TextBlock Text="X / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PoseXTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="1245.000" />
+                                                </StackPanel>
+                                                 <StackPanel Grid.Column="1" Margin="5,0">
+                                                     <TextBlock Text="Y / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PoseYTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="380.000" />
+                                                </StackPanel>
+                                                 <StackPanel Grid.Column="2" Margin="5,0,0,0">
+                                                     <TextBlock Text="Z / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PoseZTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="1080.000" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                 <TextBox x:Name="PoseRxTextBox"
+                                                          Grid.Column="0"
+                                                          Margin="0,0,5,0"
+                                                          Text="0.000°" />
+                                                 <TextBox x:Name="PoseRyTextBox"
+                                                          Grid.Column="1"
+                                                          Margin="5,0"
+                                                          Text="−90.000°" />
+                                                 <TextBox x:Name="PoseRzTextBox"
+                                                          Grid.Column="2"
+                                                          Margin="5,0,0,0"
+                                                          Text="0.000°" />
+                                             </Grid>
+                                             <Button x:Name="ApplyPoseButton"
+                                                     Margin="0,12,0,0"
+                                                     Style="{StaticResource PrimaryButtonStyle}"
+                                                     Content="应用末端位姿" />
+                                         </StackPanel>
+                                     </Border>
+
+                                     <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                         <Button x:Name="RecordPointButton"
+                                                 Grid.Column="0"
+                                                 Margin="0,0,4,0"
+                                                 Style="{StaticResource BaseButtonStyle}"
+                                                 Content="记录点位" />
+                                         <Button x:Name="HomeButton"
+                                                 Grid.Column="1"
+                                                 Margin="4,0"
+                                                 Style="{StaticResource BaseButtonStyle}"
+                                                 Content="回到 Home" />
+                                         <Button x:Name="SaveTeachPointButton"
+                                                 Grid.Column="2"
+                                                 Margin="4,0,0,0"
+                                                 Style="{StaticResource PrimaryButtonStyle}"
+                                                 Content="保存示教点" />
+                                    </Grid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="碰撞检查">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="0,14,0,18">
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid Width="88" Height="88">
+                                                <Ellipse Width="82"
+                                                         Height="82"
+                                                         Stroke="#E2E8F0"
+                                                         StrokeThickness="7" />
+                                                <Ellipse Width="82"
+                                                         Height="82"
+                                                         Stroke="{StaticResource AccentBrush}"
+                                                         StrokeThickness="7"
+                                                         StrokeDashArray="290 230"
+                                                         RenderTransformOrigin="0.5,0.5">
+                                                    <Ellipse.RenderTransform>
+                                                        <RotateTransform Angle="-90" />
+                                                    </Ellipse.RenderTransform>
+                                                </Ellipse>
+                                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                     <TextBlock x:Name="CollisionCoverageText"
+                                                                Text="0%"
+                                                                FontSize="20"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center" />
+                                                    <TextBlock Text="覆盖率"
+                                                               Style="{StaticResource CaptionStyle}"
+                                                               FontSize="9"
+                                                               HorizontalAlignment="Center" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <StackPanel Grid.Column="1" Margin="18,0,0,0" VerticalAlignment="Center">
+                                                <TextBlock Text="碰撞模型状态"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                 <TextBlock x:Name="CollisionCoverageDetail"
+                                                            Margin="0,5,0,0"
+                                                            Text="尚未生成碰撞体"
+                                                           Foreground="{StaticResource MutedTextBrush}"
+                                                           FontSize="11" />
+                                                 <ProgressBar x:Name="CollisionCoverageProgress"
+                                                              Margin="0,10,0,0"
+                                                              Value="0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,12">
+                                                <TextBlock Text="Link 碰撞体"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                <TextBlock Text="V-HACD"
+                                                           HorizontalAlignment="Right"
+                                                           Foreground="#7C3AED"
+                                                           FontSize="10"
+                                                           FontWeight="SemiBold" />
+                                            </Grid>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="58" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="LINK" Style="{StaticResource CaptionStyle}" />
+                                                <TextBlock Grid.Column="1" Text="凸包" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="状态" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Right" />
+                                            </Grid>
+                                             <Border Height="1" Margin="0,7" Background="{StaticResource BorderBrush}" />
+                                             <StackPanel x:Name="CollisionLinkListHost">
+                                             <Grid Height="36">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="58" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="AXIS2" VerticalAlignment="Center" FontSize="11" />
+                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
+                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
+                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid Height="36">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="58" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="AXIS3" VerticalAlignment="Center" FontSize="11" />
+                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
+                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
+                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid Height="36">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="58" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="AXIS6" VerticalAlignment="Center" FontSize="11" />
+                                                <TextBlock Grid.Column="1" Text="8" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#475569" FontSize="11" />
+                                                <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#EAF8F0" CornerRadius="10">
+                                                    <TextBlock Text="已确认" Foreground="#15803D" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid Height="36">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="72" />
+                                                    <ColumnDefinition Width="58" />
+                                                </Grid.ColumnDefinitions>
+                                                 <TextBlock Grid.Column="0" Text="FLANGE" VerticalAlignment="Center" FontSize="11" />
+                                                 <TextBlock Grid.Column="1" Text="—" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#94A3B8" FontSize="11" />
+                                                 <Border Grid.Column="2" Width="50" Height="21" HorizontalAlignment="Right" Background="#FFF7E6" CornerRadius="10">
+                                                     <TextBlock Text="待生成" Foreground="#B45309" FontSize="9" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                 </Border>
+                                             </Grid>
+                                             </StackPanel>
+                                         </StackPanel>
+                                     </Border>
+
+                                     <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="凸分解参数"
+                                                       Style="{StaticResource SectionTitleStyle}" />
+                                            <Grid Margin="0,12,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="最大凸包" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox Margin="0,5,0,0" Text="8" IsReadOnly="True" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0">
+                                                    <TextBlock Text="分辨率" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox Margin="0,5,0,0" Text="100000" IsReadOnly="True" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                                    <TextBlock Text="体积误差" Style="{StaticResource CaptionStyle}" />
+                                                    <TextBox Margin="0,5,0,0" Text="2.5%" IsReadOnly="True" />
+                                                </StackPanel>
+                                            </Grid>
+                                             <ComboBox x:Name="CollisionLinkComboBox"
+                                                       Margin="0,10,0,0"
+                                                       SelectedIndex="0">
+                                                 <ComboBoxItem Content="FLANGE · 0.72 MB" />
+                                                <ComboBoxItem Content="AXIS1 · 1.84 MB" />
+                                            </ComboBox>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                 <Button x:Name="GenerateHullsButton"
+                                                         Grid.Column="0"
+                                                         Margin="0,0,4,0"
+                                                         Style="{StaticResource BaseButtonStyle}"
+                                                         Content="生成 / 重新生成" />
+                                                 <Button x:Name="ConfirmHullsButton"
+                                                         Grid.Column="1"
+                                                         Margin="4,0,0,0"
+                                                         Style="{StaticResource PrimaryButtonStyle}"
+                                                         Content="确认预览" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <TextBlock Text="场景实体"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                 <Button x:Name="AddObstacleButton"
+                                                         Width="66"
+                                                         Height="28"
+                                                         Padding="8,0"
+                                                        HorizontalAlignment="Right"
+                                                        Style="{StaticResource BaseButtonStyle}"
+                                                        Content="+ 添加" />
+                                            </Grid>
+                                            <Border Padding="10" Background="#FFF8ED" BorderBrush="#FDE3B2" BorderThickness="1" CornerRadius="7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="34" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Grid.Column="0" Width="24" Height="24" Background="#F59E0B" CornerRadius="4" />
+                                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                                        <TextBlock Text="工作台障碍物" FontWeight="SemiBold" FontSize="11" />
+                                                        <TextBlock Text="2750, 0, 1470  ·  300 × 300 × 400 mm" Style="{StaticResource CaptionStyle}" FontSize="9" />
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Column="2" Text="Environment" Foreground="#B45309" FontSize="9" VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="相邻 Link 豁免" Foreground="#475569" FontSize="11" VerticalAlignment="Center" />
+                                                <CheckBox Grid.Column="1" IsChecked="True" Content="启用" />
+                                            </Grid>
+                                            <Button Margin="0,10,0,0"
+                                                    Style="{StaticResource BaseButtonStyle}"
+                                                    Content="管理碰撞豁免规则" />
+                                             <Button x:Name="CollisionCheckButton"
+                                                     Margin="0,8,0,0"
+                                                     Style="{StaticResource PrimaryButtonStyle}"
+                                                     Content="执行当前姿态碰撞检查" />
+                                             <TextBlock x:Name="CollisionStatusText"
+                                                        Margin="0,8,0,0"
+                                                        Text="等待操作"
+                                                        TextWrapping="Wrap"
+                                                        Style="{StaticResource CaptionStyle}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <TabItem Header="路径规划">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="0,14,0,18">
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,12">
+                                                <TextBlock Text="规划模式"
+                                                           Style="{StaticResource SectionTitleStyle}" />
+                                                <Border HorizontalAlignment="Right"
+                                                        Background="#EAF1FF"
+                                                        CornerRadius="10"
+                                                        Padding="8,4">
+                                                    <TextBlock Text="COLLISION FREE"
+                                                               Foreground="#1D4ED8"
+                                                               FontSize="8"
+                                                               FontWeight="SemiBold" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <ToggleButton Grid.Column="0"
+                                                              Style="{StaticResource SegmentToggleStyle}"
+                                                              IsChecked="True"
+                                                              Content="末端目标" />
+                                                <ToggleButton Grid.Column="1"
+                                                              Margin="4,0,0,0"
+                                                              Style="{StaticResource SegmentToggleStyle}"
+                                                              Content="关节目标" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Fill="#16A34A" VerticalAlignment="Center" />
+                                                    <TextBlock Text="起点"
+                                                               Margin="7,0,0,0"
+                                                               Style="{StaticResource SectionTitleStyle}" />
+                                                </StackPanel>
+                                                <TextBlock Text="当前姿态"
+                                                           HorizontalAlignment="Right"
+                                                           Foreground="#16A34A"
+                                                           FontSize="10" />
+                                            </Grid>
+                                            <Border Padding="10" Background="#F8FAFC" CornerRadius="7">
+                                                <TextBlock FontFamily="Consolas"
+                                                           FontSize="10"
+                                                           Foreground="#475569"
+                                                           Text="X 1245.000   Y 380.000   Z 1080.000&#10;RX 0.000°   RY −90.000°   RZ 0.000°" />
+                                            </Border>
+                                             <Button x:Name="UseCurrentPoseButton"
+                                                     Margin="0,10,0,0"
+                                                     Style="{StaticResource BaseButtonStyle}"
+                                                     Content="使用当前机器人姿态" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,10">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Fill="#2563EB" VerticalAlignment="Center" />
+                                                    <TextBlock Text="目标位姿"
+                                                               Margin="7,0,0,0"
+                                                               Style="{StaticResource SectionTitleStyle}" />
+                                                </StackPanel>
+                                                <TextBlock Text="世界坐标"
+                                                           HorizontalAlignment="Right"
+                                                           Style="{StaticResource CaptionStyle}" />
+                                            </Grid>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                 <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                     <TextBlock Text="X / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PlanTargetXTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="795.000" />
+                                                </StackPanel>
+                                                 <StackPanel Grid.Column="1" Margin="4,0">
+                                                     <TextBlock Text="Y / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PlanTargetYTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="380.000" />
+                                                </StackPanel>
+                                                 <StackPanel Grid.Column="2" Margin="4,0,0,0">
+                                                     <TextBlock Text="Z / mm" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PlanTargetZTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="1080.000" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                 <TextBox x:Name="PlanTargetRxTextBox"
+                                                          Grid.Column="0"
+                                                          Margin="0,0,4,0"
+                                                          Text="0.000°" />
+                                                 <TextBox x:Name="PlanTargetRyTextBox"
+                                                          Grid.Column="1"
+                                                          Margin="4,0"
+                                                          Text="−90.000°" />
+                                                 <TextBox x:Name="PlanTargetRzTextBox"
+                                                          Grid.Column="2"
+                                                          Margin="4,0,0,0"
+                                                          Text="0.000°" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <TextBlock Text="规划配置"
+                                                       Style="{StaticResource SectionTitleStyle}" />
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="规划器" Style="{StaticResource CaptionStyle}" />
+                                                     <ComboBox x:Name="PlannerComboBox"
+                                                               Margin="0,5,0,0"
+                                                               SelectedIndex="0">
+                                                         <ComboBoxItem Content="OMPL" />
+                                                        <ComboBoxItem Content="RRTConnect" />
+                                                    </ComboBox>
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                                    <TextBlock Text="碰撞后端" Style="{StaticResource CaptionStyle}" />
+                                                     <ComboBox x:Name="CollisionBackendComboBox"
+                                                               Margin="0,5,0,0"
+                                                               SelectedIndex="0">
+                                                         <ComboBoxItem Content="FCL" />
+                                                    </ComboBox>
+                                                </StackPanel>
+                                            </Grid>
+                                            <Grid Margin="0,10,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                                    <TextBlock Text="碰撞采样间隔" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="CollisionResolutionTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="0.05 rad" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                                    <TextBlock Text="超时时间" Style="{StaticResource CaptionStyle}" />
+                                                     <TextBox x:Name="PlanTimeoutTextBox"
+                                                              Margin="0,5,0,0"
+                                                              Text="10.0 s" />
+                                                </StackPanel>
+                                            </Grid>
+                                            <CheckBox Margin="0,12,0,0" IsChecked="True" Content="启用已确认的 Link 碰撞体" />
+                                            <CheckBox Margin="0,7,0,0" IsChecked="True" Content="保留当前末端姿态" />
+                                             <Button x:Name="PlanPathButton"
+                                                     Margin="0,14,0,0"
+                                                     Height="42"
+                                                     Style="{StaticResource PrimaryButtonStyle}"
+                                                     Content="计算无碰撞路径" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Margin="0,0,0,12">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Border Width="8" Height="8" Background="#F59E0B" CornerRadius="4" VerticalAlignment="Center" />
+                                                     <TextBlock x:Name="PlanStatusText"
+                                                                Text="等待规划"
+                                                                Margin="7,0,0,0"
+                                                                Style="{StaticResource SectionTitleStyle}" />
+                                                </StackPanel>
+                                                     <TextBlock x:Name="PlanBackendText"
+                                                                Text="OMPL / FCL"
+                                                                HorizontalAlignment="Right"
+                                                                Style="{StaticResource CaptionStyle}" />
+                                            </Grid>
+                                            <UniformGrid Columns="3">
+                                                 <StackPanel>
+                                                     <TextBlock Text="路径长度" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
+                                                     <TextBlock x:Name="PathLengthText"
+                                                                Text="—"
+                                                                Style="{StaticResource MetricStyle}"
+                                                                HorizontalAlignment="Center" />
+                                                 </StackPanel>
+                                                 <StackPanel>
+                                                     <TextBlock Text="预计耗时" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
+                                                     <TextBlock x:Name="PathDurationText"
+                                                                Text="—"
+                                                                Style="{StaticResource MetricStyle}"
+                                                                HorizontalAlignment="Center" />
+                                                 </StackPanel>
+                                                 <StackPanel>
+                                                     <TextBlock Text="采样节点" Style="{StaticResource CaptionStyle}" HorizontalAlignment="Center" />
+                                                     <TextBlock x:Name="PathSamplesText"
+                                                                Text="—"
+                                                                Style="{StaticResource MetricStyle}"
+                                                                HorizontalAlignment="Center" />
+                                                 </StackPanel>
+                                            </UniformGrid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="轨迹播放" Style="{StaticResource SectionTitleStyle}" />
+                                                 <TextBlock x:Name="PlaybackTimeText"
+                                                            Grid.Column="1"
+                                                            Text="0.000 / 0.000 s"
+                                                            Style="{StaticResource CaptionStyle}"
+                                                            VerticalAlignment="Center" />
+                                            </Grid>
+                                             <Slider x:Name="PlaybackSlider"
+                                                     Margin="0,14,0,8"
+                                                     Minimum="0"
+                                                     Maximum="1"
+                                                     IsEnabled="False" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                 <Button x:Name="PlaybackRestartButton"
+                                                         Grid.Column="0"
+                                                         Margin="0,0,4,0"
+                                                         Style="{StaticResource BaseButtonStyle}"
+                                                         Content="回到起点" />
+                                                 <Button x:Name="PlaybackPlayButton"
+                                                         Grid.Column="1"
+                                                         Margin="4,0"
+                                                         Style="{StaticResource PrimaryButtonStyle}"
+                                                         Content="播放" />
+                                                 <Button x:Name="PlaybackStopButton"
+                                                         Grid.Column="2"
+                                                         Margin="4,0,0,0"
+                                                         Style="{StaticResource BaseButtonStyle}"
+                                                         Content="停止 / 取消" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+                    </TabControl>
+
+                    <Border Grid.Row="2"
+                            Padding="16,0"
+                            Background="#F8FAFC"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="0,1,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="8" Height="8" Background="#22C55E" CornerRadius="4" VerticalAlignment="Center" />
+                             <TextBlock x:Name="GlobalStatusText"
+                                        Grid.Column="1"
+                                        Margin="8,0,0,0"
+                                        Text="安全状态：可操作"
+                                       Foreground="#475569"
+                                       FontSize="10"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2"
+                                       Text="控制器 1 ms"
+                                       Style="{StaticResource CaptionStyle}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Background="#172235">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse Width="7" Height="7" Fill="#22C55E" VerticalAlignment="Center" />
+                    <TextBlock Text="RENDERER READY"
+                               Margin="7,0,0,0"
+                               Foreground="#9FE8BF"
+                               FontFamily="Consolas"
+                               FontSize="9"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+                 <TextBlock x:Name="RobotDofText"
+                            Grid.Column="1"
+                            Margin="22,0,0,0"
+                            Text="KR500 · 6 DOF"
+                           Foreground="#718096"
+                           FontSize="9"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2"
+                           Text="就绪"
+                           Foreground="#8492A6"
+                           FontSize="9"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="3"
+                           Text="mm"
+                           Foreground="#718096"
+                           FontSize="9"
+                           VerticalAlignment="Center" />
+                <TextBlock Grid.Column="4"
+                           Margin="18,0,0,0"
+                           Text="v1.0  ·  WPF UI Prototype"
+                           Foreground="#617087"
+                           FontSize="9"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
