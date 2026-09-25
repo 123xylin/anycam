@@ -1,4 +1,5 @@
 using AnyCAD.Foundation;
+using AnyCAD.Robot.Studio;
 using AnyCAD.Simulate;
 using System;
 using System.Drawing;
@@ -8,13 +9,13 @@ namespace RapidRobot
 {
     public partial class RobotIndicatorForm : Form
     {
-        private readonly AnyCAD.Robot.RobotControler mRobot;
+        private readonly RobotControler mRobot;
         private readonly DataGridView mJointGrid = new DataGridView();
 
         public delegate void UpdateView();
         public UpdateView OnUpdate;
 
-        public RobotIndicatorForm(AnyCAD.Robot.RobotControler robot)
+        public RobotIndicatorForm(RobotControler robot)
         {
             mRobot = robot;
             InitializeComponent();
@@ -107,6 +108,7 @@ namespace RapidRobot
                     name = $"Joint {pathOffset}";
 
                 var unit = type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous ? "deg" :
+                //var unit = type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous ? "deg" :
                     type == EnumRobotJointType.Prismatic ? "mm" : string.Empty;
                 var rowIndex = mJointGrid.Rows.Add(pathOffset, name, type, string.Empty, unit,
                     type == EnumRobotJointType.Fixed ? "—" : "-",

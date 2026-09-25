@@ -5,6 +5,7 @@
     <TargetFrameworks>net8.0-windows</TargetFrameworks>
     <UseWindowsForms>true</UseWindowsForms>
     <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>..\..\app.ico</ApplicationIcon>
     <AnyCADSdkVersion Condition="'$(AnyCADSdkVersion)' == ''">2026.9.22.1736</AnyCADSdkVersion>
   </PropertyGroup>
 
@@ -19,6 +20,7 @@
   <ItemGroup>
 	<PackageReference Include="AnyCAD.Rapid.NET" Version="$(AnyCADSdkVersion)" />
     <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
+    <ProjectReference Include="..\..\Studio\AnyCAD.Robot.Studio\AnyCAD.Robot.Studio.csproj" />
   </ItemGroup>
 
   <ItemGroup>

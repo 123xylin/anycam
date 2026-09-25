@@ -2,10 +2,16 @@
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup />
   <ItemGroup>
+    <Compile Update="CollisionDemoForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Update="MianForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Update="RobotIndicatorForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="SimulationSdkForm.cs">
       <SubType>Form</SubType>
     </Compile>
   </ItemGroup>

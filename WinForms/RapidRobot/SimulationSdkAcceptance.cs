@@ -242,7 +242,7 @@ namespace RapidRobot
                     using var continuousArmIndex = continuousModel.AddArm(continuousArm);
                     using var continuousBody = RobotBody.Create(continuousModel);
                     Require(continuousBody != null, "Continuous RobotBody");
-                    var controller = new AnyCAD.Robot.RobotControler(continuousBody);
+                    var controller = new AnyCAD.Robot.Studio.RobotControler(continuousBody);
                     Require(controller.AddJointPosition(0, 0, 7.0),
                         "Continuous jog accepts unbounded angle (arms=" + controller.ArmCount +
                         ", joints=" + (controller.ArmCount > 0 ? controller.GetJointCount(0) : 0) +

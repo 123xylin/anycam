@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>AnyCAD.Robot.Studio</RootNamespace>
+    <AssemblyName>AnyCAD.Robot.Studio</AssemblyName>
+    <AnyCADSdkVersion Condition="'$(AnyCADSdkVersion)' == ''">2026.9.22.1736</AnyCADSdkVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AnyCAD.Rapid.NET" Version="$(AnyCADSdkVersion)" />
+    <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
+  </ItemGroup>
+
+</Project>

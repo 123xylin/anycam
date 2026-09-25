@@ -1,8 +1,7 @@
 using AnyCAD.Forms;
 using AnyCAD.Foundation;
-using AnyCAD.Robot;
+using AnyCAD.Robot.Studio;
 using AnyCAD.Simulate;
-using Rapid.Robot;
 using System;
 using System.IO;
 using System.Windows.Forms;
@@ -13,7 +12,7 @@ namespace RapidRobot
     public partial class MainForm : Form
     {
         private readonly RenderControl mRenderView;
-        private AnyCAD.Robot.RobotControler mRobotControler;
+        private RobotControler mRobotControler;
         private GroupSceneNode mIkTarget;
         private RobotTargetEditor mIkEditor;
         private RobotIndicatorForm mIndicatorUI;
@@ -201,7 +200,7 @@ namespace RapidRobot
             mRenderView.ClearAll();
             mRenderView.ShowSceneNode(robot);
 
-            mRobotControler = new AnyCAD.Robot.RobotControler(robot);
+            mRobotControler = new RobotControler(robot);
             mLoadLinkMesh = loaded.LoadLinkMesh;
             mRobotControler.ModelChanged += OnRobotModelChanged;
             mRobotControler.SelectedArmChanged += ResetIkTargetToSelectedArm;
