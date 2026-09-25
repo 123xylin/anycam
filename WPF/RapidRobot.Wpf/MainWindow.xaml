@@ -312,7 +312,9 @@
                         Placement="Relative"
                         AllowsTransparency="True"
                         StaysOpen="True"
-                        IsOpen="True">
+                        IsOpen="True"
+                        Width="{Binding ActualWidth, ElementName=ViewportBorder}"
+                        Height="{Binding ActualHeight, ElementName=ViewportBorder}">
                     <Grid x:Name="ViewportOverlayRoot">
                         <Border Margin="16"
                                 Padding="4"
@@ -367,6 +369,27 @@
                                                FontFamily="Segoe MDL2 Assets"
                                                FontSize="14" />
                                 </ToggleButton>
+                                <Border Width="1"
+                                        Margin="4,5"
+                                        Background="#3A465A" />
+                                <ToggleButton Width="42"
+                                              Height="34"
+                                              Style="{StaticResource ChromeToggleStyle}"
+                                              IsChecked="{Binding IsGridVisible}"
+                                              ToolTip="显示网格">
+                                    <TextBlock Text="&#xE80F;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </ToggleButton>
+                                <Button Width="42"
+                                        Height="34"
+                                        Style="{StaticResource ChromeButtonStyle}"
+                                        Command="{Binding FitViewCommand}"
+                                        ToolTip="适合窗口">
+                                    <TextBlock Text="&#xE8A3;"
+                                               FontFamily="Segoe MDL2 Assets"
+                                               FontSize="14" />
+                                </Button>
                             </StackPanel>
                         </Border>
 
@@ -397,9 +420,36 @@
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Center"
                                             Background="Transparent"
+                                            BorderBrush="Transparent"
                                             BorderThickness="0"
                                             Padding="6,4"
+                                            Cursor="Hand"
                                             ToolTip="折叠目录树">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource BaseButtonStyle}">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border x:Name="Chrome"
+                                                                    Background="{TemplateBinding Background}"
+                                                                    CornerRadius="6"
+                                                                    Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Chrome" Property="Background" Value="#262F3F58" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsPressed" Value="True">
+                                                                    <Setter TargetName="Chrome" Property="Background" Value="#1C2A40" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
                                         <TextBlock Text="&#xE71D;"
                                                    FontFamily="Segoe MDL2 Assets"
                                                    FontSize="12"
@@ -462,25 +512,17 @@
                         </Border>
 
                         <!-- 折叠态：方形按钮，点击展开目录树 -->
-                        <Button Width="40"
-                                Height="40"
+                        <Button Style="{StaticResource ScenePanelButtonStyle}"
                                 Margin="16"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Top"
                                 Command="{Binding ToggleSceneTreeCommand}"
                                 ToolTip="展开场景资源"
                                 Visibility="{Binding SceneTreeCollapsedVisibility}">
-                            <Border Background="#F21A2638"
-                                    BorderBrush="#334158"
-                                    BorderThickness="1"
-                                    CornerRadius="10">
-                                <TextBlock Text="&#xE71D;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="14"
-                                           Foreground="#7F8CA3"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
-                            </Border>
+                            <TextBlock Text="&#xE71D;"
+                                       FontFamily="Segoe MDL2 Assets"
+                                       FontSize="12"
+                                       Foreground="#7F8CA3" />
                         </Button>
 
                         <StackPanel x:Name="ViewerEmptyOverlay"
@@ -544,46 +586,6 @@
                                            Foreground="#C6D1DF"
                                            FontFamily="Consolas"
                                            FontSize="10" />
-                            </StackPanel>
-                        </Border>
-
-                        <Border Margin="16"
-                                Padding="8"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Background="#E6162234"
-                                BorderBrush="#334158"
-                                BorderThickness="1"
-                                CornerRadius="9">
-                            <StackPanel Orientation="Horizontal">
-                                 <ToggleButton x:Name="GridVisibilityToggle"
-                                               Width="36"
-                                               Height="32"
-                                               Style="{StaticResource ChromeToggleStyle}"
-                                               IsChecked="{Binding IsGridVisible}"
-                                               ToolTip="显示网格">
-                                    <TextBlock Text="&#xE80F;"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               FontSize="13" />
-                                </ToggleButton>
-                                 <Button x:Name="FitViewButton"
-                                         Width="36"
-                                         Height="32"
-                                         Style="{StaticResource ChromeButtonStyle}"
-                                         ToolTip="适合窗口"
-                                         Command="{Binding FitViewCommand}">
-                                    <TextBlock Text="&#xE8A3;"
-                                               FontFamily="Segoe MDL2 Assets"
-                                               FontSize="13" />
-                                </Button>
-                                <Border Width="1"
-                                        Margin="4,5"
-                                        Background="#3A465A" />
-                                <TextBlock Text="60 FPS"
-                                           Margin="7,0,5,0"
-                                           Foreground="#8C99AB"
-                                           FontSize="9"
-                                           VerticalAlignment="Center" />
                             </StackPanel>
                         </Border>
                     </Grid>
