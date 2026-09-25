@@ -102,6 +102,20 @@ namespace RapidRobot.Wpf.ViewModels
         [ObservableProperty]
         private Brush robotConnectionBrush = new SolidColorBrush(Color.FromRgb(148, 163, 184));
 
+        // 目录树折叠为方形按钮时显示（与 SceneTreeExpanded 相反）
+        public Visibility SceneTreeCollapsedVisibility =>
+            SceneTreeExpanded ? Visibility.Collapsed : Visibility.Visible;
+
+        // 目录树面板可见性（默认展开）
+        public Visibility SceneTreeVisibility =>
+            SceneTreeExpanded ? Visibility.Visible : Visibility.Collapsed;
+
+        partial void OnSceneTreeExpandedChanged(bool value)
+        {
+            OnPropertyChanged(nameof(SceneTreeVisibility));
+            OnPropertyChanged(nameof(SceneTreeCollapsedVisibility));
+        }
+
         [ObservableProperty]
         private Visibility viewerEmptyVisibility = Visibility.Visible;
 
@@ -113,6 +127,10 @@ namespace RapidRobot.Wpf.ViewModels
 
         [ObservableProperty]
         private bool isGridVisible = true;
+
+        // 场景资源目录树折叠/展开（默认展开）
+        [ObservableProperty]
+        private bool sceneTreeExpanded = true;
 
         // 示教
         [ObservableProperty]
@@ -397,6 +415,8 @@ namespace RapidRobot.Wpf.ViewModels
 
         public async Task ShutdownAsync()
         {
+            if (shutdownComplete)
+                return;
             closing = true;
             workspace.Changed -= OnWorkspaceChanged;
             pendingPlan?.Cancel();
@@ -435,6 +455,9 @@ namespace RapidRobot.Wpf.ViewModels
 
         public void Dispose() => TryCleanup(() =>
         {
+            if (shutdownComplete)
+                return;
+            shutdownComplete = true;
             workspace.Changed -= OnWorkspaceChanged;
             workspace.Dispose();
             backends.Dispose();
@@ -935,6 +958,11 @@ namespace RapidRobot.Wpf.ViewModels
             SetStatus("轨迹播放或后台操作期间不能修改机器人状态。", true);
             return false;
         }
+
+        // ============ 命令：场景资源折叠 ============
+
+        [RelayCommand]
+        private void ToggleSceneTree() => SceneTreeExpanded = !SceneTreeExpanded;
 
         // ============ 命令：加载 / 装配 ============
 

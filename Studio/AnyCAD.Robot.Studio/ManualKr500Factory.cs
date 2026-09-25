@@ -129,12 +129,15 @@ namespace AnyCAD.Robot.Studio
             using var triangles = new Uint32List();
             using (var source = mesh.Indices)
                 foreach (var index in source) triangles.Add(index);
+            using var normals = MeshNormals.ComputeSmooth(positions, triangles);
             using var positionBuffer = Float32Buffer.Create(positions);
+            using var normalBuffer = Float32Buffer.Create(normals);
             using var indexBuffer = Uint32Buffer.Create(triangles);
             using var positionArray = new Float32Array(positionBuffer);
+            using var normalArray = new Float32Array(normalBuffer);
             using var indexArray = new Uint32Array(indexBuffer);
             using var geometry = GeometryBuilder.CreateGeometry(EnumPrimitiveType.TRIANGLES,
-                positionArray, null, null, indexArray);
+                positionArray, normalArray, null, indexArray);
             var node = PrimitiveSceneNode.Create(geometry, null);
             node.SetName(name + ".visual.0");
             using var color = name == "Base"

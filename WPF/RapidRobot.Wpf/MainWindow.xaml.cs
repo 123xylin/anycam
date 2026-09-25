@@ -25,6 +25,8 @@ namespace RapidRobot.Wpf
             renderView = new RenderControl();
             renderView.ViewerReady += RenderViewOnViewerReady;
             ViewportHost.Content = renderView;
+            ViewportBorder.SizeChanged += OnViewportBorderSizeChanged;
+            LocationChanged += OnWindowLocationChanged;
             viewModel = new MainWindowViewModel(this);
             DataContext = viewModel;
             playbackTimer = new DispatcherTimer(DispatcherPriority.Render) {
@@ -38,22 +40,88 @@ namespace RapidRobot.Wpf
 
         public bool IsReady { get; private set; }
 
-        public void ClearAll() => renderView.ClearAll();
+        private bool renderReleased;
 
-        public void ShowSceneNode(SceneNode node) => renderView.ShowSceneNode(node);
+        private bool CanRender => !renderReleased && renderView != null;
 
-        public void RequestDraw(EnumUpdateFlags flags) => renderView.RequestDraw(flags);
+        public void ClearAll()
+        {
+            if (CanRender)
+                renderView.ClearAll();
+        }
 
-        public void ZoomAll() => renderView.ZoomAll();
+        public void ShowSceneNode(SceneNode node)
+        {
+            if (CanRender)
+                renderView.ShowSceneNode(node);
+        }
 
-        public void SetStandardView() =>
-            renderView.Viewer.SetStandardView(EnumStandardView.DefaultView, false);
+        public void RequestDraw(EnumUpdateFlags flags)
+        {
+            if (CanRender)
+                renderView.RequestDraw(flags);
+        }
 
-        public void ShowCoordinateGrid(bool visible) => renderView.ShowCoordinateGrid(visible);
+        public void ZoomAll()
+        {
+            if (CanRender)
+                renderView.ZoomAll();
+        }
 
-        public void SetEditor(Editor editor) => renderView.SetEditor(editor);
+        public void SetStandardView()
+        {
+            if (CanRender)
+                renderView.Viewer.SetStandardView(EnumStandardView.DefaultView, false);
+        }
 
-        public void ClearEditor() => renderView.ClearEditor();
+        public void ShowCoordinateGrid(bool visible)
+        {
+            if (CanRender)
+                renderView.ShowCoordinateGrid(visible);
+        }
+
+        public void SetEditor(Editor editor)
+        {
+            if (CanRender)
+                renderView.SetEditor(editor);
+        }
+
+        public void ClearEditor()
+        {
+            if (CanRender)
+                renderView.ClearEditor();
+        }
+
+        private void OnViewportBorderSizeChanged(object? sender, SizeChangedEventArgs e)
+        {
+            if (ViewportOverlayRoot == null)
+                return;
+            ViewportOverlayRoot.Width = ViewportBorder.ActualWidth;
+            ViewportOverlayRoot.Height = ViewportBorder.ActualHeight;
+            // 尺寸变化时 PlacementTarget 的左上角屏幕坐标可能也变了（如窗口最大化），
+            // 强制 Popup 基于 PlacementTarget 重新计算位置。
+            RefreshPopupPosition();
+        }
+
+        // WPF Popup 在宿主窗口移动时不自动跟随（只跟踪布局变化，不跟踪屏幕坐标变化）。
+        // 通过微调 HorizontalOffset/VerticalOffset 触发内部 UpdatePosition() 重算，
+        // 使 Popup 重新对齐 PlacementTarget（ViewportBorder）的当前屏幕位置。
+        private void OnWindowLocationChanged(object? sender, EventArgs e)
+        {
+            RefreshPopupPosition();
+        }
+
+        private void RefreshPopupPosition()
+        {
+            if (ViewportOverlayPopup == null)
+                return;
+            double h = ViewportOverlayPopup.HorizontalOffset;
+            double v = ViewportOverlayPopup.VerticalOffset;
+            ViewportOverlayPopup.HorizontalOffset = h + 0.1;
+            ViewportOverlayPopup.VerticalOffset = v + 0.1;
+            ViewportOverlayPopup.HorizontalOffset = h;
+            ViewportOverlayPopup.VerticalOffset = v;
+        }
 
         // ==================== 渲染初始化 ====================
 
@@ -62,7 +130,10 @@ namespace RapidRobot.Wpf
             if (IsReady)
                 return;
             IsReady = true;
-            renderView.SetBackgroundColor(0.035f, 0.055f, 0.09f, 1.0f);
+
+            CoordinateWidgetSetting cws = new CoordinateWidgetSetting(renderView.Viewer);
+            cws.SetCoordinateWidget(EnumViewCoordinateType.Sphere);
+            //renderView.SetBackgroundColor(0.035f, 0.055f, 0.09f, 1.0f);
             renderView.Camera.SetProjectionType(EnumProjectionType.Orthographic);
             renderView.SceneManager.SetViewScale(1);
             viewModel.OnViewerReady();
@@ -81,6 +152,8 @@ namespace RapidRobot.Wpf
             if (shutdownStarted)
                 return;
             shutdownStarted = true;
+            playbackTimer.Stop();
+            IsEnabled = false;
             _ = ShutdownAsync();
         }
 
@@ -99,12 +172,18 @@ namespace RapidRobot.Wpf
             }
             finally
             {
-                playbackTimer.Stop();
                 viewModel.Dispose();
-                renderView.Dispose();
                 shutdownComplete = true;
                 _ = Dispatcher.BeginInvoke(new Action(Close));
             }
+        }
+
+        // 窗口真正关闭（视觉树已卸载、RenderControl 已销毁）后置位，
+        // 此后任何残留回调访问渲染控件一律安全跳过。
+        protected override void OnClosed(EventArgs e)
+        {
+            renderReleased = true;
+            base.OnClosed(e);
         }
     }
 }

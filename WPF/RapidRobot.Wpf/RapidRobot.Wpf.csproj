@@ -4,6 +4,7 @@
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <PlatformTarget>x64</PlatformTarget>
+    <ApplicationIcon>..\..\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AnyCADSdkVersion Condition="'$(AnyCADSdkVersion)' == ''">2026.9.22.1736</AnyCADSdkVersion>
@@ -13,6 +14,9 @@
     <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <ProjectReference Include="..\..\Studio\AnyCAD.Robot.Studio\AnyCAD.Robot.Studio.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="..\..\app.ico" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\Model\**\*.urdf" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

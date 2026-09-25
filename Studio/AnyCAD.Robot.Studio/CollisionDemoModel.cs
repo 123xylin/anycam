@@ -258,12 +258,15 @@ namespace AnyCAD.Robot.Studio
                 foreach (var coordinate in hull.Coordinates) positions.Add((float)coordinate);
                 using var indices = new Uint32List();
                 foreach (var value in hull.Indices) indices.Add(value);
+                using var normals = MeshNormals.ComputeSmooth(positions, indices);
                 using var positionBuffer = Float32Buffer.Create(positions);
+                using var normalBuffer = Float32Buffer.Create(normals);
                 using var indexBuffer = Uint32Buffer.Create(indices);
                 using var positionArray = new Float32Array(positionBuffer);
+                using var normalArray = new Float32Array(normalBuffer);
                 using var indexArray = new Uint32Array(indexBuffer);
                 using var geometry = GeometryBuilder.CreateGeometry(
-                    EnumPrimitiveType.TRIANGLES, positionArray, null, null, indexArray);
+                    EnumPrimitiveType.TRIANGLES, positionArray, normalArray, null, indexArray);
                 var node = PrimitiveSceneNode.Create(geometry, null);
                 using var color = pending ? new Vector3(0.98f, 0.77f, 0.18f)
                     : new Vector3(0.15f, 0.75f, 0.95f);
