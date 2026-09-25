@@ -13,8 +13,8 @@ namespace AnyCAD.Robot
         private uint mTrajectoryIndex;
         private uint mSelectedArmIndex;
 
-        public event Action ModelChanged;
-        public event Action SelectedArmChanged;
+        public event Action? ModelChanged;
+        public event Action? SelectedArmChanged;
 
         public RobotBody Robot => mRobot;
         public ParticleSceneNode Trajectory => mTrajectory;
@@ -205,7 +205,7 @@ namespace AnyCAD.Robot
             mTrajectory.RequestUpdate();
         }
 
-        private RobotArm GetArm(uint armIndex)
+        private RobotArm? GetArm(uint armIndex)
         {
             if (armIndex >= mRobot.GetArmCount())
                 return null;
@@ -214,7 +214,7 @@ namespace AnyCAD.Robot
             return mRobot.GetArm(index);
         }
 
-        private RobotJointEdge GetJoint(uint armIndex, uint pathOffset)
+        private RobotJointEdge? GetJoint(uint armIndex, uint pathOffset)
         {
             using var arm = GetArm(armIndex);
             if (arm == null || pathOffset >= arm.GetJointCount())

@@ -21,7 +21,7 @@ namespace RapidRobot.Wpf
 
         internal event Action? Changed;
 
-        internal void Load(RobotLoadResult loaded)
+        internal void Load(RobotLoadResult loaded, Action? beforeReplace = null)
         {
             ThrowIfDisposed();
             if (loaded?.Body == null || loaded.LoadLinkMesh == null ||
@@ -31,15 +31,33 @@ namespace RapidRobot.Wpf
                 throw new InvalidOperationException("The robot does not contain a usable Arm.");
             }
 
-            ReleaseCore();
-            body = loaded.Body;
-            LoadLinkMesh = loaded.LoadLinkMesh;
-            controller = new RobotControler(body);
-            controller.ModelChanged += OnModelChanged;
-            controller.SelectedArmChanged += OnSelectedArmChanged;
-            collision = new CollisionDemoModel(body);
-            collision.AddObstacle();
-            Changed?.Invoke();
+            RobotBody? nextBody = loaded.Body;
+            var committed = false;
+            try
+            {
+                var nextController = new RobotControler(nextBody);
+                var nextCollision = new CollisionDemoModel(nextBody);
+                nextCollision.AddObstacle();
+                beforeReplace?.Invoke();
+                ReleaseCore(false);
+                body = nextBody;
+                LoadLinkMesh = loaded.LoadLinkMesh;
+                controller = nextController;
+                collision = nextCollision;
+                controller.ModelChanged += OnModelChanged;
+                controller.SelectedArmChanged += OnSelectedArmChanged;
+                nextBody = null;
+                committed = true;
+                Changed?.Invoke();
+            }
+            catch
+            {
+                if (committed)
+                    ReleaseCore(false);
+                else
+                    nextBody?.Dispose();
+                throw;
+            }
         }
 
         internal void Release()
@@ -59,7 +77,7 @@ namespace RapidRobot.Wpf
             Changed?.Invoke();
         }
 
-        private void ReleaseCore()
+        private void ReleaseCore(bool notify = true)
         {
             if (controller != null)
             {
@@ -74,7 +92,8 @@ namespace RapidRobot.Wpf
             var oldBody = body;
             body = null;
             oldBody?.Dispose();
-            Changed?.Invoke();
+            if (notify)
+                Changed?.Invoke();
         }
 
         private void ThrowIfDisposed()
@@ -87,7 +106,7 @@ namespace RapidRobot.Wpf
         {
             if (disposed)
                 return;
-            ReleaseCore();
+            ReleaseCore(false);
             disposed = true;
         }
     }

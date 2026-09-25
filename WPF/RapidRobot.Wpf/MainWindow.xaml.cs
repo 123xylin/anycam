@@ -5,6 +5,7 @@ using Microsoft.Win32;
 using RapidRobot;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -28,7 +29,7 @@ namespace RapidRobot.Wpf
         private readonly RobotWorkspaceSession workspace = new();
         private readonly DispatcherTimer playbackTimer;
         private readonly Stopwatch playbackClock = new();
-        private readonly RobotTrajectoryPlayer player = new();
+        private RobotTrajectoryPlayer player = new();
         private readonly BackendSelection backends;
         private readonly List<TeachPoint> teachPoints = new();
         private RobotSimulationSession? pendingPlan;
@@ -40,6 +41,8 @@ namespace RapidRobot.Wpf
         private bool updatingPlayback;
         private bool updatingUi;
         private bool closing;
+        private bool shutdownStarted;
+        private bool shutdownComplete;
         private string modelLabel = "未加载";
 
         public MainWindow()
@@ -70,7 +73,7 @@ namespace RapidRobot.Wpf
             manualMenu.Items.Add(threeAItem);
             ManualAssemblyButton.ContextMenu = manualMenu;
             ManualAssemblyButton.Click += (_, _) => manualMenu.IsOpen = true;
-            EmergencyStopButton.Click += (_, _) => EmergencyStop();
+            EmergencyStopButton.Click += async (_, _) => await EmergencyStopAsync();
             LinkVisibilityToggle.Checked += (_, _) => SetLinkVisibility();
             LinkVisibilityToggle.Unchecked += (_, _) => SetLinkVisibility();
             TrajectoryVisibilityToggle.Checked += (_, _) => SetTrajectoryVisibility();
@@ -85,6 +88,7 @@ namespace RapidRobot.Wpf
             HomeButton.Click += (_, _) => ResetRobot();
             SaveTeachPointButton.Click += (_, _) => SaveTeachPoints();
             GenerateHullsButton.Click += async (_, _) => await GenerateHullsFromUi();
+            CollisionLinkComboBox.SelectionChanged += (_, _) => SelectCollisionLinkFromUi();
             ConfirmHullsButton.Click += (_, _) => ConfirmHulls();
             AddObstacleButton.Click += (_, _) => AddObstacle();
             CollisionCheckButton.Click += async (_, _) => await RunCollisionCheck();
@@ -92,7 +96,7 @@ namespace RapidRobot.Wpf
             PlanPathButton.Click += async (_, _) => await PlanPathFromUi();
             PlaybackRestartButton.Click += (_, _) => RestartPlayback();
             PlaybackPlayButton.Click += (_, _) => TogglePlayback();
-            PlaybackStopButton.Click += (_, _) => StopPlayback();
+            PlaybackStopButton.Click += (_, _) => StopPlaybackOrCancel();
             PlaybackSlider.ValueChanged += (_, _) => SeekPlayback();
             PlannerComboBox.SelectionChanged += (_, _) => ApplyBackendSelection();
             CollisionBackendComboBox.SelectionChanged += (_, _) => ApplyBackendSelection();
@@ -235,6 +239,35 @@ namespace RapidRobot.Wpf
             return false;
         }
 
+        private bool EnsureRobotIdle()
+        {
+            if (activeOperation == null && player.GetState() != EnumRobotPlaybackState.Playing)
+                return true;
+            SetStatus("轨迹播放或后台操作期间不能修改机器人状态。", true);
+            return false;
+        }
+
+        private void RefreshInteractionUi()
+        {
+            var canInteract = workspace.Body != null && activeOperation == null &&
+                !loadingModel && player.GetState() != EnumRobotPlaybackState.Playing;
+            ArmComboBox.IsEnabled = canInteract;
+            ApplyPoseButton.IsEnabled = canInteract;
+            HomeButton.IsEnabled = canInteract;
+            RecordPointButton.IsEnabled = canInteract;
+            ConfirmHullsButton.IsEnabled = canInteract;
+            AddObstacleButton.IsEnabled = canInteract;
+            if (pendingPlan == null)
+            {
+                CollisionCheckButton.IsEnabled = canInteract;
+                PlanPathButton.IsEnabled = canInteract;
+            }
+            GenerateHullsButton.IsEnabled = pendingDecomposition != null || canInteract;
+            CollisionLinkComboBox.IsEnabled = pendingDecomposition == null && canInteract;
+            RefreshJointUi();
+            UpdatePlaybackUi();
+        }
+
         private void LoadRobot(RobotLoadResult loaded, string label)
         {
             if (loaded?.Body == null || loaded.LoadLinkMesh == null ||
@@ -245,14 +278,15 @@ namespace RapidRobot.Wpf
             }
 
             loadingModel = true;
-            StopPlayback();
+            candidate = null;
+            ResetPlayer();
+            ResetPathMetrics();
             SetStatus("正在安装机器人模型…");
-            var transferred = false;
+            var installed = false;
             try
             {
-                renderView.ClearAll();
-                workspace.Load(loaded);
-                transferred = true;
+                workspace.Load(loaded, renderView.ClearAll);
+                installed = true;
                 var controller = workspace.Controller!;
                 var body = workspace.Body!;
                 renderView.ShowSceneNode(body);
@@ -270,10 +304,17 @@ namespace RapidRobot.Wpf
             }
             catch
             {
-                if (transferred)
-                    workspace.Release();
-                else
-                    loaded.Body?.Dispose();
+                if (installed)
+                {
+                    try
+                    {
+                        renderView.ClearAll();
+                    }
+                    finally
+                    {
+                        workspace.Release();
+                    }
+                }
                 throw;
             }
             finally
@@ -286,9 +327,16 @@ namespace RapidRobot.Wpf
         {
             if (closing)
                 return;
-            UpdateAllUi();
-            if (viewerReady)
-                renderView.RequestDraw(EnumUpdateFlags.Scene);
+            try
+            {
+                UpdateAllUi();
+                if (viewerReady)
+                    renderView.RequestDraw(EnumUpdateFlags.Scene);
+            }
+            catch (Exception error)
+            {
+                SetStatus("界面刷新失败：" + error.Message, true);
+            }
         }
 
         private void UpdateAllUi()
@@ -304,11 +352,17 @@ namespace RapidRobot.Wpf
             RobotDofText.Text = controller == null
                 ? "未加载"
                 : modelLabel + " · " + controller.ArmCount + " ARM";
-            ArmComboBox.IsEnabled = controller != null;
-            ApplyPoseButton.IsEnabled = controller != null;
-            HomeButton.IsEnabled = controller != null;
-            RecordPointButton.IsEnabled = controller != null;
+            var canInteract = controller != null && activeOperation == null &&
+                player.GetState() != EnumRobotPlaybackState.Playing;
+            ArmComboBox.IsEnabled = canInteract;
+            ApplyPoseButton.IsEnabled = canInteract;
+            HomeButton.IsEnabled = canInteract;
+            RecordPointButton.IsEnabled = canInteract;
             SaveTeachPointButton.IsEnabled = controller != null;
+            ConfirmHullsButton.IsEnabled = canInteract;
+            AddObstacleButton.IsEnabled = canInteract;
+            CollisionCheckButton.IsEnabled = canInteract;
+            PlanPathButton.IsEnabled = canInteract;
             RefreshArmUi();
             RefreshJointUi();
             RefreshPoseUi();
@@ -346,51 +400,111 @@ namespace RapidRobot.Wpf
         private void RefreshJointUi()
         {
             var controller = workspace.Controller;
+            var canInteract = controller != null && activeOperation == null && !loadingModel &&
+                player.GetState() != EnumRobotPlaybackState.Playing;
             for (var i = 0; i < 6; ++i)
             {
                 var enabled = false;
                 var value = double.NaN;
+                var type = EnumRobotJointType.Fixed;
                 if (controller != null && i < controller.GetJointCount(controller.SelectedArmIndex))
                 {
-                    var type = controller.GetJointType(controller.SelectedArmIndex, (uint)i);
+                    type = controller.GetJointType(controller.SelectedArmIndex, (uint)i);
                     enabled = type != EnumRobotJointType.Fixed;
                     value = controller.GetJointPosition(controller.SelectedArmIndex, (uint)i);
                 }
-                JogNegative(i).IsEnabled = enabled && !loadingModel;
-                JogPositive(i).IsEnabled = enabled && !loadingModel;
-                JointValue(i).Text = double.IsFinite(value)
-                    ? (value * 180.0 / Math.PI).ToString("0.000", CultureInfo.InvariantCulture) + "°"
-                    : "—";
+                JogNegative(i).IsEnabled = enabled && canInteract;
+                JogPositive(i).IsEnabled = enabled && canInteract;
+                if (!double.IsFinite(value) || type == EnumRobotJointType.Fixed)
+                {
+                    JointValue(i).Text = "—";
+                    continue;
+                }
+                var display = value;
+                var unit = "mm";
+                if (type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous)
+                {
+                    display *= 180.0 / Math.PI;
+                    unit = "°";
+                }
+                JointValue(i).Text = display.ToString("0.000", CultureInfo.InvariantCulture) + " " + unit;
             }
             RefreshJogStep();
         }
 
         private void RefreshJogStep()
         {
-            var step = Math.Max(0.1, JogStepSlider.Value / 35.0);
-            JogStepText.Text = step.ToString("0.000", CultureInfo.InvariantCulture) + " °";
+            var type = GetStepJointType();
+            if (type == null)
+            {
+                JogStepText.Text = "—";
+                return;
+            }
+            var step = GetJogStep(type.Value);
+            var unit = type == EnumRobotJointType.Prismatic ? "mm" : "°";
+            JogStepText.Text = step.ToString("0.000", CultureInfo.InvariantCulture) + " " + unit;
+        }
+
+        private EnumRobotJointType? GetStepJointType()
+        {
+            var controller = workspace.Controller;
+            if (controller == null)
+                return null;
+            var count = Math.Min(6, controller.GetJointCount(controller.SelectedArmIndex));
+            for (uint i = 0; i < count; ++i)
+            {
+                var type = controller.GetJointType(controller.SelectedArmIndex, i);
+                if (type != EnumRobotJointType.Fixed)
+                    return type;
+            }
+            return null;
+        }
+
+        private double GetJogStep(EnumRobotJointType type)
+        {
+            return type == EnumRobotJointType.Prismatic
+                ? Math.Max(0.1, JogStepSlider.Value / 7.0)
+                : Math.Max(0.1, JogStepSlider.Value / 35.0);
         }
 
         private void SelectArmFromUi()
         {
             if (updatingUi || workspace.Controller == null || ArmComboBox.SelectedIndex < 0)
                 return;
-            workspace.Controller.SelectArm((uint)ArmComboBox.SelectedIndex);
-            SetStatus("已选择 " + workspace.Controller.GetArmName((uint)ArmComboBox.SelectedIndex));
+            if (!EnsureRobotIdle())
+                return;
+            var armIndex = (uint)ArmComboBox.SelectedIndex;
+            if (!workspace.Controller.SelectArm(armIndex))
+            {
+                RefreshArmUi();
+                SetStatus("无法选择该机械臂。", true);
+                return;
+            }
+            UpdateDefaultTarget();
+            SetStatus("已选择 " + workspace.Controller.GetArmName(armIndex));
         }
 
         private void JogJoint(int index, double direction)
         {
+            if (!EnsureRobotIdle())
+                return;
             var controller = workspace.Controller;
             if (controller == null || index < 0 || index >= controller.GetJointCount(controller.SelectedArmIndex))
                 return;
-            var step = direction * Math.Max(0.1, JogStepSlider.Value / 35.0) * Math.PI / 180.0;
+            var type = controller.GetJointType(controller.SelectedArmIndex, (uint)index);
+            if (type == EnumRobotJointType.Fixed)
+                return;
+            var step = direction * GetJogStep(type);
+            if (type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous)
+                step *= Math.PI / 180.0;
             if (!controller.AddJointPosition(controller.SelectedArmIndex, (uint)index, step))
                 SetStatus("关节点动失败或已达到限位。", true);
         }
 
         private void ApplyPose()
         {
+            if (!EnsureRobotIdle())
+                return;
             var controller = workspace.Controller;
             if (controller == null)
                 return;
@@ -411,18 +525,34 @@ namespace RapidRobot.Wpf
 
         private void ResetRobot()
         {
+            if (!EnsureRobotIdle())
+                return;
             workspace.Controller?.Reset();
             SetStatus("机器人已回到 Home");
         }
 
-        private void EmergencyStop()
+        private async Task EmergencyStopAsync()
         {
-            pendingPlan?.Cancel();
-            pendingDecomposition?.Cancel();
-            player.Stop();
-            playbackClock.Reset();
-            workspace.Controller?.Reset();
-            SetStatus("急停：运动已停止并回到 Home", true);
+            try
+            {
+                pendingPlan?.Cancel();
+                pendingDecomposition?.Cancel();
+                player.Stop();
+                playbackClock.Reset();
+                UpdatePlaybackUi();
+                var operation = activeOperation;
+                if (operation != null)
+                    await operation;
+                if (closing)
+                    return;
+                workspace.Controller?.Reset();
+                SetStatus("急停：后台操作已取消，机器人已停止并回到 Home", true);
+            }
+            catch (Exception error)
+            {
+                if (!closing)
+                    SetStatus("急停失败：" + error.Message, true);
+            }
         }
 
         private void SetLinkVisibility()
@@ -563,7 +693,7 @@ namespace RapidRobot.Wpf
             var token = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()
                 ?? normalized;
             return double.TryParse(token, NumberStyles.Float | NumberStyles.AllowThousands,
-                CultureInfo.InvariantCulture, out value);
+                CultureInfo.InvariantCulture, out value) && double.IsFinite(value);
         }
 
         private static string Format(double value) => value.ToString("0.000", CultureInfo.InvariantCulture);
@@ -572,42 +702,68 @@ namespace RapidRobot.Wpf
         {
             var model = workspace.Collision;
             var body = workspace.Body;
-            CollisionLinkListHost.Children.Clear();
-            CollisionLinkComboBox.Items.Clear();
-            if (model == null || body == null)
+            var previousIndex = CollisionLinkComboBox.SelectedItem is ComboBoxItem previous &&
+                previous.Tag is int previousValue
+                ? previousValue
+                : 0;
+            updatingUi = true;
+            try
             {
-                CollisionCoverageText.Text = "0%";
-                CollisionCoverageDetail.Text = "尚未加载机器人";
-                CollisionCoverageProgress.Value = 0;
-                CollisionStatusText.Text = "等待加载机器人";
-                return;
-            }
+                CollisionLinkListHost.Children.Clear();
+                CollisionLinkComboBox.Items.Clear();
+                if (model == null || body == null)
+                {
+                    CollisionCoverageText.Text = "0%";
+                    CollisionCoverageDetail.Text = "尚未加载机器人";
+                    CollisionCoverageProgress.Value = 0;
+                    CollisionStatusText.Text = "等待加载机器人";
+                    CollisionLinkComboBox.IsEnabled = false;
+                    return;
+                }
 
-            var total = checked((int)body.GetLinkCount());
-            var confirmed = model.LinkHulls.Count;
-            var coverage = total == 0 ? 0 : confirmed * 100.0 / total;
-            CollisionCoverageText.Text = coverage.ToString("0", CultureInfo.InvariantCulture) + "%";
-            CollisionCoverageDetail.Text = confirmed + " / " + total + " 个 Link 已确认";
-            CollisionCoverageProgress.Value = coverage;
-            for (uint i = 0; i < body.GetLinkCount(); ++i)
-            {
-                var count = model.LinkHulls.TryGetValue(i, out var hulls) ? hulls.Count : 0;
-                var name = model.LinkName(i);
-                CollisionLinkComboBox.Items.Add(new ComboBoxItem {
-                    Content = name + (count == 0 ? " · 待生成" : " · " + count + " 凸包"),
-                    Tag = (int)i
-                });
-                CollisionLinkListHost.Children.Add(CreateCollisionRow(name, count));
+                var total = checked((int)body.GetLinkCount());
+                var confirmed = model.LinkHulls.Count;
+                var coverage = total == 0 ? 0 : confirmed * 100.0 / total;
+                CollisionCoverageText.Text = coverage.ToString("0", CultureInfo.InvariantCulture) + "%";
+                CollisionCoverageDetail.Text = confirmed + " / " + total + " 个 Link 已确认";
+                CollisionCoverageProgress.Value = coverage;
+                for (uint i = 0; i < body.GetLinkCount(); ++i)
+                {
+                    var count = model.LinkHulls.TryGetValue(i, out var hulls) ? hulls.Count : 0;
+                    var name = model.LinkName(i);
+                    CollisionLinkComboBox.Items.Add(new ComboBoxItem {
+                        Content = name + (count == 0 ? " · 待生成" : " · " + count + " 凸包"),
+                        Tag = (int)i
+                    });
+                    CollisionLinkListHost.Children.Add(CreateCollisionRow(name, count));
+                }
+                if (CollisionLinkComboBox.Items.Count > 0)
+                    CollisionLinkComboBox.SelectedIndex = Math.Clamp(previousIndex, 0,
+                        CollisionLinkComboBox.Items.Count - 1);
             }
-            if (CollisionLinkComboBox.Items.Count > 0)
+            finally
             {
-                updatingUi = true;
-                CollisionLinkComboBox.SelectedIndex = 0;
                 updatingUi = false;
             }
+            CollisionLinkComboBox.IsEnabled = pendingDecomposition == null && activeOperation == null &&
+                player.GetState() != EnumRobotPlaybackState.Playing;
             CollisionStatusText.Text = candidate == null
                 ? "已加载 " + model.Obstacles.Count + " 个场景实体"
                 : "候选凸包待确认";
+        }
+
+        private void SelectCollisionLinkFromUi()
+        {
+            if (updatingUi || CollisionLinkComboBox.SelectedItem is not ComboBoxItem)
+                return;
+            if (candidate != null)
+            {
+                candidate = null;
+                workspace.Collision?.ClearCandidate();
+                renderView.RequestDraw(EnumUpdateFlags.Scene);
+            }
+            CollisionStatusText.Text = "已选择 " +
+                ((ComboBoxItem)CollisionLinkComboBox.SelectedItem).Content;
         }
 
         private static Border CreateCollisionRow(string name, int hullCount)
@@ -675,22 +831,26 @@ namespace RapidRobot.Wpf
             var linkIndex = checked((uint)selectedIndex);
             candidate = null;
             model.ClearCandidate();
-            using var mesh = workspace.LoadLinkMesh(model.LinkName(linkIndex));
-            using var options = new VhacdOptions {
-                MaxConvexHulls = 8,
-                Resolution = 100000,
-                MinimumVolumePercentErrorAllowed = 2.5,
-                MaxRecursionDepth = 8,
-                MaxNumVerticesPerCH = 32
-            };
-            if (!ConvexDecompositionSession.IsAvailable())
-                throw new InvalidOperationException("V-HACD 后端不可用。");
-            using var session = new ConvexDecompositionSession(mesh, options);
-            pendingDecomposition = session;
-            GenerateHullsButton.Content = "取消生成";
-            CollisionStatusText.Text = "正在生成凸包…";
             try
             {
+                using var mesh = workspace.LoadLinkMesh(model.LinkName(linkIndex));
+                if (!mesh.IsValid())
+                    throw new InvalidOperationException("Link 碰撞网格无效。");
+                using var options = new VhacdOptions {
+                    MaxConvexHulls = 8,
+                    Resolution = 100000,
+                    MinimumVolumePercentErrorAllowed = 2.5,
+                    MaxRecursionDepth = 8,
+                    MaxNumVerticesPerCH = 32
+                };
+                if (!options.IsValid())
+                    throw new InvalidOperationException("V-HACD 参数无效。");
+                if (!ConvexDecompositionSession.IsAvailable())
+                    throw new InvalidOperationException("V-HACD 后端不可用。");
+                using var session = new ConvexDecompositionSession(mesh, options);
+                pendingDecomposition = session;
+                GenerateHullsButton.Content = "取消生成";
+                CollisionStatusText.Text = "正在生成凸包…";
                 using var result = await Task.Run(session.Compute);
                 if (closing)
                     return;
@@ -713,7 +873,12 @@ namespace RapidRobot.Wpf
                                 coordinates[3 * i + 1] = point.y;
                                 coordinates[3 * i + 2] = point.z;
                             }
-                            hulls.Add(new CollisionDemoModel.Hull(coordinates, indices.ToArray()));
+                            if (coordinates.Any(value => !double.IsFinite(value)))
+                                throw new InvalidOperationException("V-HACD 返回了无效顶点。");
+                            var indexValues = indices.ToArray();
+                            if (indexValues.Any(index => index >= vertices.Count))
+                                throw new InvalidOperationException("V-HACD 返回了无效索引。");
+                            hulls.Add(new CollisionDemoModel.Hull(coordinates, indexValues));
                         }
                     }
                 }
@@ -723,6 +888,7 @@ namespace RapidRobot.Wpf
                 model.SetCandidate(linkIndex, hulls);
                 CollisionStatusText.Text = "候选预览已生成，共 " + hulls.Count + " 个凸包，请确认。";
                 RefreshCollisionUi();
+                renderView.RequestDraw(EnumUpdateFlags.Scene);
             }
             catch (Exception error)
             {
@@ -731,14 +897,16 @@ namespace RapidRobot.Wpf
             }
             finally
             {
-                if (ReferenceEquals(pendingDecomposition, session))
-                    pendingDecomposition = null;
+                pendingDecomposition = null;
                 GenerateHullsButton.Content = "生成 / 重新生成";
+                RefreshInteractionUi();
             }
         }
 
         private void ConfirmHulls()
         {
+            if (!EnsureRobotIdle())
+                return;
             if (workspace.Collision == null || candidate is not { } next)
             {
                 CollisionStatusText.Text = "请先生成候选凸包。";
@@ -754,6 +922,8 @@ namespace RapidRobot.Wpf
 
         private void AddObstacle()
         {
+            if (!EnsureRobotIdle())
+                return;
             var model = workspace.Collision;
             if (model == null)
             {
@@ -782,11 +952,17 @@ namespace RapidRobot.Wpf
                 CollisionStatusText.Text = "请先加载机器人。";
                 return;
             }
+            if (model.LinkHulls.Count == 0)
+            {
+                CollisionStatusText.Text = "请先生成并确认至少一个 Link 凸包。";
+                return;
+            }
+            ResetPlayer();
             CollisionCheckButton.IsEnabled = false;
-            using var session = new RobotSimulationSession(body, backends);
-            pendingPlan = session;
             try
             {
+                using var session = new RobotSimulationSession(body, backends);
+                pendingPlan = session;
                 if (!session.IsValid())
                     throw new InvalidOperationException(session.GetDiagnostic());
                 using var goals = new RobotJointPositionList();
@@ -800,8 +976,13 @@ namespace RapidRobot.Wpf
                 using var result = await Task.Run(() => session.Plan(request));
                 if (closing)
                     return;
+                var modeled = model.LinkHulls.Count;
+                var total = body.GetLinkCount();
                 if (result.Succeeded())
-                    CollisionStatusText.Text = "当前姿态通过碰撞检查。";
+                    CollisionStatusText.Text = modeled == total
+                        ? "全部 Link 已建模，当前姿态未检测到碰撞。"
+                        : "已建模的 " + modeled + " / " + total +
+                          " 个 Link 未检测到碰撞；未建模 Link 未检查。";
                 else
                 {
                     using var planning = result.Planning;
@@ -815,8 +996,7 @@ namespace RapidRobot.Wpf
             }
             finally
             {
-                if (ReferenceEquals(pendingPlan, session))
-                    pendingPlan = null;
+                pendingPlan = null;
                 CollisionCheckButton.IsEnabled = true;
             }
         }
@@ -844,26 +1024,47 @@ namespace RapidRobot.Wpf
                 PlanStatusText.Text = "目标位姿包含无效数字。";
                 return;
             }
+            if (!TryParseNumber(CollisionResolutionTextBox.Text, out var collisionResolution) ||
+                collisionResolution <= 0)
+            {
+                PlanStatusText.Text = "碰撞采样间隔必须是大于 0 的有限数值。";
+                return;
+            }
+            if (!TryParseNumber(PlanTimeoutTextBox.Text, out var timeoutSeconds) ||
+                timeoutSeconds <= 0)
+            {
+                PlanStatusText.Text = "规划超时必须是大于 0 的有限数值。";
+                return;
+            }
             if (model.LinkHulls.Count == 0)
             {
                 PlanStatusText.Text = "请先生成并确认至少一个 Link 凸包。";
                 return;
             }
+            ResetPlayer();
             PlanPathButton.IsEnabled = false;
             PlanStatusText.Text = "正在规划无碰撞路径…";
-            using var session = new RobotSimulationSession(body, backends);
-            pendingPlan = session;
             try
             {
+                using var session = new RobotSimulationSession(body, backends);
+                pendingPlan = session;
                 if (!session.IsValid())
                     throw new InvalidOperationException(session.GetDiagnostic());
-                using var armIndex = new RobotArmIndex(workspace.Controller!.SelectedArmIndex);
+                var controller = workspace.Controller ??
+                    throw new InvalidOperationException("机器人控制器不可用。");
+                using var armIndex = new RobotArmIndex(controller.SelectedArmIndex);
                 using var arm = body.GetArm(armIndex);
+                if (arm == null)
+                    throw new InvalidOperationException("无法访问当前机械臂。");
                 using var tipFrame = arm.GetTipFrameIndex();
+                if (tipFrame == null || !tipFrame.IsValid())
+                    throw new InvalidOperationException("机械臂末端 Frame 无效。");
                 using var targetWorld = RobotAssemblyPose.Create(x, y, z,
                     rx * Math.PI / 180.0, ry * Math.PI / 180.0, rz * Math.PI / 180.0);
                 using var robotModel = body.GetModel();
                 using var rootIndex = robotModel.GetRootLinkIndex();
+                if (rootIndex == null || !rootIndex.IsValid())
+                    throw new InvalidOperationException("机器人根 Link 无效。");
                 using var rootWorld = body.GetLinkTransform(rootIndex, true);
                 using var inverseRoot = rootWorld.inversed();
                 using var targetInBody = inverseRoot.multiplied(targetWorld);
@@ -885,26 +1086,30 @@ namespace RapidRobot.Wpf
                         using (solvedPosition)
                         using (var jointIndex = new RobotJointIndex(solvedPosition.JointIndex))
                         using (var joint = body.GetJoint(jointIndex))
-                        using (var goal = new RobotJointPosition {
-                            JointIndex = jointIndex,
-                            Position = solvedPosition.Position
-                        })
-                        using (var limit = new RobotMotionLimit {
-                            JointIndex = jointIndex,
-                            MaxVelocity = joint.GetMaxVelocity() > 0 ? joint.GetMaxVelocity() : 1,
-                            MaxAcceleration = joint.GetMaxVelocity() > 0 ? 2 * joint.GetMaxVelocity() : 2
-                        })
                         {
+                            if (joint == null)
+                                throw new InvalidOperationException("IK 返回了无效关节索引。");
+                            using var goal = new RobotJointPosition {
+                                JointIndex = jointIndex,
+                                Position = solvedPosition.Position
+                            };
+                            using var limit = new RobotMotionLimit {
+                                JointIndex = jointIndex,
+                                MaxVelocity = joint.GetMaxVelocity() > 0 ? joint.GetMaxVelocity() : 1,
+                                MaxAcceleration = joint.GetMaxVelocity() > 0 ? 2 * joint.GetMaxVelocity() : 2
+                            };
                             goals.Add(goal);
                             limits.Add(limit);
                         }
                     }
                 }
+                if (goals.Count == 0)
+                    throw new InvalidOperationException("IK 没有返回可规划关节。");
                 using var request = session.CreatePlanningRequest(goals, limits);
                 using (var options = request.Options)
                 {
-                    options.CollisionResolution = ParseLeadingNumber(CollisionResolutionTextBox.Text, 0.05);
-                    options.TimeoutSeconds = ParseLeadingNumber(PlanTimeoutTextBox.Text, 10.0);
+                    options.CollisionResolution = collisionResolution;
+                    options.TimeoutSeconds = timeoutSeconds;
                 }
                 model.ApplyTo(request);
                 using var result = await Task.Run(() => session.Plan(request));
@@ -922,13 +1127,15 @@ namespace RapidRobot.Wpf
                     PathSamplesText.Text = path.Count.ToString(CultureInfo.InvariantCulture);
                     PathLengthText.Text = CalculatePathLength(path).ToString("0.000", CultureInfo.InvariantCulture);
                 }
+                string backendText;
+                using (var selectedBackends = result.Backends)
+                    backendText = selectedBackends.Planner + " / " + selectedBackends.Collision;
                 if (!player.Load(body, result))
                     throw new InvalidOperationException(player.GetDiagnostic());
                 UpdatePlaybackUi();
                 PathDurationText.Text = player.GetDuration().ToString("0.000", CultureInfo.InvariantCulture) + " s";
                 PlanStatusText.Text = "无碰撞路径已就绪";
-                using var selectedBackends = result.Backends;
-                PlanBackendText.Text = selectedBackends.Planner + " / " + selectedBackends.Collision;
+                PlanBackendText.Text = backendText;
             }
             catch (Exception error)
             {
@@ -937,15 +1144,9 @@ namespace RapidRobot.Wpf
             }
             finally
             {
-                if (ReferenceEquals(pendingPlan, session))
-                    pendingPlan = null;
+                pendingPlan = null;
                 PlanPathButton.IsEnabled = true;
             }
-        }
-
-        private static double ParseLeadingNumber(string text, double fallback)
-        {
-            return TryParseNumber(text, out var value) ? value : fallback;
         }
 
         private static double CalculatePathLength(DoubleList2 path)
@@ -1025,12 +1226,17 @@ namespace RapidRobot.Wpf
         {
             var duration = player.GetDuration();
             var time = player.GetTime();
+            var canControl = activeOperation == null && !loadingModel;
             updatingPlayback = true;
             try
             {
                 PlaybackSlider.Maximum = Math.Max(1.0, duration);
                 PlaybackSlider.Value = Math.Clamp(time, 0, Math.Max(1.0, duration));
-                PlaybackSlider.IsEnabled = duration > 0;
+                PlaybackSlider.IsEnabled = duration > 0 && canControl;
+                PlaybackPlayButton.IsEnabled = duration > 0 && canControl;
+                PlaybackRestartButton.IsEnabled = duration > 0 && canControl;
+                PlaybackStopButton.IsEnabled = duration > 0 || pendingPlan != null ||
+                    pendingDecomposition != null;
                 PlaybackTimeText.Text = time.ToString("0.000", CultureInfo.InvariantCulture) + " / " +
                     duration.ToString("0.000", CultureInfo.InvariantCulture) + " s";
                 PlaybackPlayButton.Content = player.GetState() == EnumRobotPlaybackState.Playing ? "暂停" : "播放";
@@ -1043,6 +1249,8 @@ namespace RapidRobot.Wpf
 
         private void TogglePlayback()
         {
+            if (!EnsureRobotIdle())
+                return;
             if (player.GetDuration() <= 0)
             {
                 SetStatus("请先计算一条路径。", true);
@@ -1057,7 +1265,7 @@ namespace RapidRobot.Wpf
             else
             {
                 if (player.GetTime() >= player.GetDuration() - 0.001)
-                    player.Stop();
+                    StopPlaybackCore();
                 if (player.Play())
                 {
                     playbackClock.Restart();
@@ -1066,27 +1274,67 @@ namespace RapidRobot.Wpf
                 else
                     SetStatus("轨迹播放失败：" + player.GetDiagnostic(), true);
             }
-            UpdatePlaybackUi();
+            RefreshInteractionUi();
         }
 
         private void RestartPlayback()
         {
-            player.Stop();
-            playbackClock.Reset();
-            UpdatePlaybackUi();
+            if (!EnsureRobotIdle())
+                return;
+            if (player.GetDuration() <= 0)
+                return;
+            StopPlaybackCore();
             SetStatus("轨迹已回到起点");
         }
 
-        private void StopPlayback()
+        private void StopPlaybackOrCancel()
+        {
+            if (pendingPlan != null || pendingDecomposition != null)
+            {
+                pendingPlan?.Cancel();
+                pendingDecomposition?.Cancel();
+                SetStatus("正在取消当前操作…");
+            }
+            StopPlaybackCore();
+        }
+
+        private void StopPlaybackCore()
         {
             player.Stop();
             playbackClock.Reset();
+            workspace.Collision?.UpdateLinkTransforms();
+            renderView.RequestDraw(EnumUpdateFlags.Scene);
+            UpdatePoseUiFromBody();
             UpdatePlaybackUi();
+        }
+
+        private void ResetPlayer()
+        {
+            var previous = player;
+            player = new RobotTrajectoryPlayer();
+            try
+            {
+                previous.Stop();
+            }
+            finally
+            {
+                previous.Dispose();
+            }
+            playbackClock.Reset();
+            ResetPathMetrics();
+            UpdatePlaybackUi();
+        }
+
+        private void ResetPathMetrics()
+        {
+            PathLengthText.Text = "—";
+            PathDurationText.Text = "—";
+            PathSamplesText.Text = "—";
         }
 
         private void SeekPlayback()
         {
-            if (updatingPlayback || player.GetDuration() <= 0)
+            if (updatingPlayback || !EnsureRobotIdle() || player.GetDuration() <= 0)
                 return;
             if (player.Seek(PlaybackSlider.Value))
             {
@@ -1104,16 +1352,23 @@ namespace RapidRobot.Wpf
                 CollisionStatusText.Text = "正在生成凸包 " +
                     pendingDecomposition.GetProgress().ToString("0", CultureInfo.InvariantCulture) + "%";
             }
-            if (player.GetState() != EnumRobotPlaybackState.Playing)
+            if (closing || activeOperation != null ||
+                player.GetState() != EnumRobotPlaybackState.Playing)
                 return;
             var elapsed = playbackClock.Elapsed.TotalSeconds;
             playbackClock.Restart();
-            if (!player.Tick(elapsed))
+            var advanced = player.Tick(elapsed);
+            if (!advanced)
+            {
+                playbackClock.Reset();
                 SetStatus("轨迹播放结束：" + player.GetDiagnostic());
+            }
             workspace.Collision?.UpdateLinkTransforms();
             renderView.RequestDraw(EnumUpdateFlags.Scene);
             UpdatePoseUiFromBody();
             UpdatePlaybackUi();
+            if (!advanced)
+                RefreshInteractionUi();
         }
 
         private void UpdatePoseUiFromBody()
@@ -1124,16 +1379,30 @@ namespace RapidRobot.Wpf
 
         private async Task RunTrackedAsync(Func<Task> operation)
         {
-            var task = operation();
-            activeOperation = task;
+            Task? task = null;
             try
             {
+                task = operation();
+                activeOperation = task;
+                RefreshInteractionUi();
                 await task;
+            }
+            catch (OperationCanceledException)
+            {
+                if (!closing)
+                    SetStatus("当前操作已取消。");
+            }
+            catch (Exception error)
+            {
+                if (!closing)
+                    SetStatus("操作失败：" + error.Message, true);
             }
             finally
             {
                 if (ReferenceEquals(activeOperation, task))
                     activeOperation = null;
+                if (!closing)
+                    RefreshInteractionUi();
             }
         }
 
@@ -1145,7 +1414,19 @@ namespace RapidRobot.Wpf
                 : new SolidColorBrush(Color.FromRgb(71, 85, 105));
         }
 
-        protected override async void OnClosed(EventArgs e)
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            base.OnClosing(e);
+            if (shutdownComplete || e.Cancel)
+                return;
+            e.Cancel = true;
+            if (shutdownStarted)
+                return;
+            shutdownStarted = true;
+            _ = ShutdownAsync();
+        }
+
+        private async Task ShutdownAsync()
         {
             closing = true;
             workspace.Changed -= OnWorkspaceChanged;
@@ -1159,16 +1440,32 @@ namespace RapidRobot.Wpf
                 {
                     await operation;
                 }
-                catch
+                catch (Exception error)
                 {
+                    Debug.WriteLine("Shutdown task: " + error.Message);
                 }
             }
-            workspace.Dispose();
-            backends.Dispose();
-            player.Dispose();
-            renderView.ViewerReady -= RenderViewOnViewerReady;
-            renderView.Dispose();
-            base.OnClosed(e);
+
+            TryCleanup(() => player.Stop());
+            TryCleanup(player.Dispose);
+            TryCleanup(workspace.Dispose);
+            TryCleanup(backends.Dispose);
+            TryCleanup(() => renderView.ViewerReady -= RenderViewOnViewerReady);
+            TryCleanup(renderView.Dispose);
+            shutdownComplete = true;
+            _ = Dispatcher.BeginInvoke(new Action(Close));
+        }
+
+        private static void TryCleanup(Action cleanup)
+        {
+            try
+            {
+                cleanup();
+            }
+            catch (Exception error)
+            {
+                Debug.WriteLine("Cleanup: " + error.Message);
+            }
         }
     }
 }

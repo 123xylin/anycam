@@ -12,7 +12,7 @@ namespace RapidRobot
         internal sealed class Obstacle
         {
             internal ulong Id;
-            internal string Name;
+            internal string Name = string.Empty;
             internal double X, Y, Z, Width, Depth, Height;
             public override string ToString() => Name;
         }
@@ -25,7 +25,7 @@ namespace RapidRobot
         private readonly bool showPreview;
         private readonly Dictionary<uint, List<Hull>> linkHulls = new();
         private readonly Dictionary<uint, GroupSceneNode> linkPreviews = new();
-        private GroupSceneNode candidatePreview;
+        private GroupSceneNode? candidatePreview;
         private readonly List<Obstacle> obstacles = new();
         private readonly HashSet<ulong> ownedObstacleIds = new();
         private readonly HashSet<ulong> ownedLinkIds = new();

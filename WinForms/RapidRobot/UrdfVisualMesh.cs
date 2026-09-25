@@ -24,14 +24,14 @@ namespace RapidRobot
             {
                 var mesh = visual.Element("geometry")?.Element("mesh");
                 if (mesh == null) continue;
-                var name = (string)mesh.Attribute("filename");
+                var name = mesh.Attribute("filename")?.Value;
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 var file = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(urdfFile) ?? "",
                     name.Replace('/', Path.DirectorySeparatorChar)));
-                var scale = Triple((string)mesh.Attribute("scale"), (1, 1, 1));
+                var scale = Triple(mesh.Attribute("scale")?.Value, (1, 1, 1));
                 var origin = visual.Element("origin");
-                var xyz = Triple((string)origin?.Attribute("xyz"), (0, 0, 0));
-                var rpy = Triple((string)origin?.Attribute("rpy"), (0, 0, 0));
+                var xyz = Triple(origin?.Attribute("xyz")?.Value, (0, 0, 0));
+                var rpy = Triple(origin?.Attribute("rpy")?.Value, (0, 0, 0));
                 parts.Add(new StlVisualPart(file,
                     scale.X * RobotLengthScale, scale.Y * RobotLengthScale,
                     scale.Z * RobotLengthScale,
@@ -41,7 +41,7 @@ namespace RapidRobot
             return StlLinkMesh.Load(parts);
         }
 
-        private static (double X, double Y, double Z) Triple(string text,
+        private static (double X, double Y, double Z) Triple(string? text,
             (double X, double Y, double Z) fallback)
         {
             if (string.IsNullOrWhiteSpace(text)) return fallback;
