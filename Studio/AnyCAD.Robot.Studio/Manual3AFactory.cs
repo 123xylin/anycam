@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
     // Numeric assembly data is transcribed from Model/3A/index.urdf. Runtime reads
     // only the five BREP files, so a vendor table or assembly UI can replace it.
-    internal static class Manual3AFactory
+    public static class Manual3AFactory
     {
         private const double HalfPi = Math.PI / 2;
 
@@ -34,7 +34,7 @@ namespace RapidRobot
             new("T_tip_fixed_joint", 4, 5, 0, 0, 0, 0, 0, 0, EnumRobotJointType.Fixed)
         };
 
-        internal static CollisionTriangleMesh LoadLinkMesh(string modelDirectory, string linkName)
+        public static CollisionTriangleMesh LoadLinkMesh(string modelDirectory, string linkName)
         {
             Visual spec = Array.Find(Visuals, entry => entry.Link == linkName)
                 ?? throw new InvalidDataException("This Link has no BREP visual: " + linkName);
@@ -42,7 +42,7 @@ namespace RapidRobot
                 spec.X, spec.Y, spec.Z, spec.Roll, spec.Pitch, spec.Yaw);
         }
 
-        internal static RobotBody Create(string modelDirectory)
+        public static RobotBody Create(string modelDirectory)
         {
             using var model = new RobotModel();
             model.SetName("XYZ");

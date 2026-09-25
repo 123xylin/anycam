@@ -5,11 +5,11 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class SimulationSdkAcceptance
+    public static class SimulationSdkAcceptance
     {
-        internal static int Run(string reportPath, string assetsRoot = null)
+        public static int Run(string reportPath, string assetsRoot = null)
         {
             var report = new StringBuilder();
             try
@@ -242,7 +242,7 @@ namespace RapidRobot
                     using var continuousArmIndex = continuousModel.AddArm(continuousArm);
                     using var continuousBody = RobotBody.Create(continuousModel);
                     Require(continuousBody != null, "Continuous RobotBody");
-                    var controller = new AnyCAD.Robot.RobotControler(continuousBody);
+                    var controller = new RobotControler(continuousBody);
                     Require(controller.AddJointPosition(0, 0, 7.0),
                         "Continuous jog accepts unbounded angle (arms=" + controller.ArmCount +
                         ", joints=" + (controller.ArmCount > 0 ? controller.GetJointCount(0) : 0) +

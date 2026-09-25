@@ -3,11 +3,11 @@ using AnyCAD.Simulate;
 using System;
 using System.IO;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class BrepLinkMesh
+    public static class BrepLinkMesh
     {
-        internal static TopoShape Open(string file)
+        public static TopoShape Open(string file)
         {
             if (!File.Exists(file)) throw new FileNotFoundException("BREP visual is missing", file);
             var shape = ShapeIO.Open(file);
@@ -21,12 +21,12 @@ namespace RapidRobot
 
         // ShapeIO's registered STL writer tessellates the same TopoShape shown by
         // BrepSceneNode. Reuse the STL transform path to preserve Link-local units.
-        internal static CollisionTriangleMesh Load(string file,
+        public static CollisionTriangleMesh Load(string file,
             double x, double y, double z, double roll, double pitch, double yaw)
         {
             using var shape = Open(file);
             var stl = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-                "rapidrobot-brep-" + Guid.NewGuid().ToString("N") + ".stl");
+                "anyrobot-brep-" + Guid.NewGuid().ToString("N") + ".stl");
             try
             {
                 if (!ShapeIO.Save(shape, stl))

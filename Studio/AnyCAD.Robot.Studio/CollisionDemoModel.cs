@@ -4,21 +4,21 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal sealed class CollisionDemoModel
+    public sealed class CollisionDemoModel
     {
-        internal sealed record Hull(double[] Coordinates, uint[] Indices);
-        internal sealed class Obstacle
+        public sealed record Hull(double[] Coordinates, uint[] Indices);
+        public sealed class Obstacle
         {
-            internal ulong Id;
-            internal string Name = string.Empty;
-            internal double X, Y, Z, Width, Depth, Height;
+            public ulong Id;
+            public string Name = string.Empty;
+            public double X, Y, Z, Width, Depth, Height;
             public override string ToString() => Name;
         }
-        internal readonly record struct Pair(ulong First, ulong Second)
+        public readonly record struct Pair(ulong First, ulong Second)
         {
-            internal static Pair Of(ulong a, ulong b) => a < b ? new Pair(a, b) : new Pair(b, a);
+            public static Pair Of(ulong a, ulong b) => a < b ? new Pair(a, b) : new Pair(b, a);
         }
 
         private readonly RobotBody body;
@@ -33,13 +33,13 @@ namespace RapidRobot
         private readonly HashSet<Pair> ignored = new();
         private (uint Index, List<Hull> Hulls)? candidate;
         private ulong nextObstacleId = 1000000;
-        internal GroupSceneNode PreviewRoot { get; } = new GroupSceneNode();
-        internal IReadOnlyList<Obstacle> Obstacles => obstacles;
-        internal IReadOnlyCollection<Pair> Ignored => ignored;
-        internal IReadOnlyCollection<Pair> Adjacent => adjacent;
-        internal IReadOnlyDictionary<uint, List<Hull>> LinkHulls => linkHulls;
+        public GroupSceneNode PreviewRoot { get; } = new GroupSceneNode();
+        public IReadOnlyList<Obstacle> Obstacles => obstacles;
+        public IReadOnlyCollection<Pair> Ignored => ignored;
+        public IReadOnlyCollection<Pair> Adjacent => adjacent;
+        public IReadOnlyDictionary<uint, List<Hull>> LinkHulls => linkHulls;
 
-        internal CollisionDemoModel(RobotBody body, bool showPreview = true)
+        public CollisionDemoModel(RobotBody body, bool showPreview = true)
         {
             this.body = body;
             this.showPreview = showPreview;
@@ -57,18 +57,18 @@ namespace RapidRobot
             }
         }
 
-        internal string LinkName(uint index)
+        public string LinkName(uint index)
         {
             using var key = new RobotLinkIndex(index);
             using var link = body.GetLink(key);
             return link?.GetName() ?? ("Link " + index);
         }
 
-        internal string OwnerName(ulong id) => id <= body.GetLinkCount()
+        public string OwnerName(ulong id) => id <= body.GetLinkCount()
             ? LinkName((uint)(id - 1))
             : obstacles.FirstOrDefault(item => item.Id == id)?.Name ?? ("Entity " + id);
 
-        internal void SetLinkHulls(uint index, List<Hull> hulls)
+        public void SetLinkHulls(uint index, List<Hull> hulls)
         {
             if (hulls == null || hulls.Count == 0) throw new ArgumentException("No convex hulls were generated.");
             linkHulls[index] = hulls;
@@ -77,25 +77,25 @@ namespace RapidRobot
             if (showPreview) RebuildPreview();
         }
 
-        internal void SetCandidate(uint index, List<Hull> hulls)
+        public void SetCandidate(uint index, List<Hull> hulls)
         {
             candidate = (index, hulls);
             if (showPreview) RebuildPreview();
         }
 
-        internal void ClearCandidate()
+        public void ClearCandidate()
         {
             candidate = null;
             if (showPreview) RebuildPreview();
         }
 
-        internal void RemoveLinkHulls(uint index)
+        public void RemoveLinkHulls(uint index)
         {
             linkHulls.Remove(index);
             if (showPreview) RebuildPreview();
         }
 
-        internal Obstacle AddObstacle()
+        public Obstacle AddObstacle()
         {
             var item = new Obstacle {
                 Id = nextObstacleId++, Name = "Obstacle " + (obstacles.Count + 1),
@@ -107,21 +107,22 @@ namespace RapidRobot
             return item;
         }
 
-        internal void RemoveObstacle(Obstacle item)
+        public void RemoveObstacle(Obstacle item)
         {
             if (!obstacles.Remove(item)) return;
+            ownedObstacleIds.Remove(item.Id);
             ignored.RemoveWhere(pair => pair.First == item.Id || pair.Second == item.Id);
             if (showPreview) RebuildPreview();
         }
 
-        internal bool SetIgnored(ulong a, ulong b, bool value)
+        public bool SetIgnored(ulong a, ulong b, bool value)
         {
             if (a == b) return false;
             var pair = Pair.Of(a, b);
             return value ? ignored.Add(pair) : ignored.Remove(pair);
         }
 
-        internal void ApplyTo(RobotPlanRequest request)
+        public void ApplyTo(RobotPlanRequest request)
         {
             using var scene = request.CollisionScene;
             using var bodies = scene.Bodies;
@@ -210,7 +211,7 @@ namespace RapidRobot
             }
         }
 
-        internal void RebuildPreview()
+        public void RebuildPreview()
         {
             PreviewRoot.Clear();
             linkPreviews.Clear();
@@ -273,7 +274,7 @@ namespace RapidRobot
             return group;
         }
 
-        internal void UpdateLinkTransforms()
+        public void UpdateLinkTransforms()
         {
             foreach (var entry in linkPreviews)
             {

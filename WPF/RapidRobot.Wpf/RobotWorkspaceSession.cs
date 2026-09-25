@@ -1,7 +1,6 @@
 using AnyCAD.Foundation;
-using AnyCAD.Robot;
+using AnyCAD.Robot.Studio;
 using AnyCAD.Simulate;
-using RapidRobot;
 using System;
 
 namespace RapidRobot.Wpf

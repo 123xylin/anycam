@@ -1,12 +1,12 @@
-﻿using AnyCAD.Foundation;
+using AnyCAD.Foundation;
 
-namespace Rapid.Robot
+namespace AnyCAD.Robot.Studio
 {
-    internal class RobotTargetEditor : NodeFrameEditor
+    public class RobotTargetEditor : NodeFrameEditor
     {
-        private readonly AnyCAD.Robot.RobotControler mRobot;
+        private readonly RobotControler mRobot;
 
-        public RobotTargetEditor(SceneNode target, AnyCAD.Robot.RobotControler robot)
+        public RobotTargetEditor(SceneNode target, RobotControler robot)
             : base(target, TransformWidget.Create(20.0f), "Robot.MoveTarget")
         {
             mRobot = robot;

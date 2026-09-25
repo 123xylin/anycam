@@ -1,11 +1,11 @@
 using AnyCAD.Foundation;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class RobotAssemblyPose
+    public static class RobotAssemblyPose
     {
         // Link-local millimetres and URDF-compatible Rz * Ry * Rx radians.
-        internal static Matrix4d Create(double x, double y, double z,
+        public static Matrix4d Create(double x, double y, double z,
             double roll, double pitch, double yaw)
         {
             using var translation = Matrix4d.makeTranslation(x, y, z);

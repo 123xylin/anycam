@@ -5,14 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class CollisionDemoAcceptance
+    public static class CollisionDemoAcceptance
     {
-        internal static int Run(string reportPath, string modelRoot)
+        public static int Run(string reportPath, string modelRoot)
             => Run(reportPath, modelRoot, false);
 
-        internal static int RunManual(string reportPath, string modelRoot)
+        public static int RunManual(string reportPath, string modelRoot)
             => Run(reportPath, modelRoot, true);
 
         private static int Run(string reportPath, string modelRoot, bool manual)

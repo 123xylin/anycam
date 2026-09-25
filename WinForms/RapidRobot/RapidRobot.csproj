@@ -19,6 +19,7 @@
   <ItemGroup>
 	<PackageReference Include="AnyCAD.Rapid.NET" Version="$(AnyCADSdkVersion)" />
     <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
+    <ProjectReference Include="..\..\Studio\AnyCAD.Robot.Studio\AnyCAD.Robot.Studio.csproj" />
   </ItemGroup>
 
   <ItemGroup>

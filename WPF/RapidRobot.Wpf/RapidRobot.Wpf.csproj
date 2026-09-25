@@ -11,17 +11,7 @@
   <ItemGroup>
     <PackageReference Include="AnyCAD.Rapid.NET" Version="$(AnyCADSdkVersion)" />
     <PackageReference Include="AnyCAD.Simulate.NET" Version="$(AnyCADSdkVersion)" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\..\WinForms\RapidRobot\BrepLinkMesh.cs" Link="Core\BrepLinkMesh.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\CollisionDemoModel.cs" Link="Core\CollisionDemoModel.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\Manual3AFactory.cs" Link="Core\Manual3AFactory.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\ManualKr500Factory.cs" Link="Core\ManualKr500Factory.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\RobotAssemblyPose.cs" Link="Core\RobotAssemblyPose.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\RobotControler.cs" Link="Core\RobotControler.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\RobotLoadResult.cs" Link="Core\RobotLoadResult.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\StlLinkMesh.cs" Link="Core\StlLinkMesh.cs" />
-    <Compile Include="..\..\WinForms\RapidRobot\UrdfVisualMesh.cs" Link="Core\UrdfVisualMesh.cs" />
+    <ProjectReference Include="..\..\Studio\AnyCAD.Robot.Studio\AnyCAD.Robot.Studio.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\..\Model\**\*.urdf" Link="Model\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

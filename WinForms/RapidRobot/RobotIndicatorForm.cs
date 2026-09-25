@@ -1,4 +1,5 @@
 using AnyCAD.Foundation;
+using AnyCAD.Robot.Studio;
 using AnyCAD.Simulate;
 using System;
 using System.Drawing;
@@ -8,13 +9,13 @@ namespace RapidRobot
 {
     public partial class RobotIndicatorForm : Form
     {
-        private readonly AnyCAD.Robot.RobotControler mRobot;
+        private readonly RobotControler mRobot;
         private readonly DataGridView mJointGrid = new DataGridView();
 
         public delegate void UpdateView();
         public UpdateView OnUpdate;
 
-        public RobotIndicatorForm(AnyCAD.Robot.RobotControler robot)
+        public RobotIndicatorForm(RobotControler robot)
         {
             mRobot = robot;
             InitializeComponent();

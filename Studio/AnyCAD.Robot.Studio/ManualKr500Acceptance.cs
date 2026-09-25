@@ -4,11 +4,11 @@ using System;
 using System.IO;
 using System.Text;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class ManualKr500Acceptance
+    public static class ManualKr500Acceptance
     {
-        internal static int Run(string reportPath, string modelRoot)
+        public static int Run(string reportPath, string modelRoot)
         {
             var report = new StringBuilder();
             try
@@ -104,7 +104,7 @@ namespace RapidRobot
                 report.AppendLine("PASS home and nonzero Link/Frame FK");
 
                 var collisionReport = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-                    "rapidrobot-manual-" + Guid.NewGuid().ToString("N") + ".txt");
+                    "anyrobot-manual-" + Guid.NewGuid().ToString("N") + ".txt");
                 try
                 {
                     Check(CollisionDemoAcceptance.RunManual(collisionReport, modelRoot) == 0,

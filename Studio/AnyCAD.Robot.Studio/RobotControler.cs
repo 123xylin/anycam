@@ -2,7 +2,7 @@ using AnyCAD.Foundation;
 using AnyCAD.Simulate;
 using System;
 
-namespace AnyCAD.Robot
+namespace AnyCAD.Robot.Studio
 {
     public class RobotControler
     {

@@ -7,15 +7,15 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
     // Coordinates and translations are millimetres; RPY angles are radians.
-    internal readonly record struct StlVisualPart(string File, double ScaleX, double ScaleY,
+    public readonly record struct StlVisualPart(string File, double ScaleX, double ScaleY,
         double ScaleZ, double X, double Y, double Z, double Roll, double Pitch, double Yaw);
 
-    internal static class StlLinkMesh
+    public static class StlLinkMesh
     {
-        internal static CollisionTriangleMesh Load(IEnumerable<StlVisualPart> parts)
+        public static CollisionTriangleMesh Load(IEnumerable<StlVisualPart> parts)
         {
             var points = new List<(double X, double Y, double Z)>();
             var indices = new List<uint>();

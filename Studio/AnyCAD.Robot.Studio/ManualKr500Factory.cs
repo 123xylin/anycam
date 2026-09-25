@@ -4,11 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
     // Kr500 dimensions and mounting poses transcribed from Model/Kr500/index.urdf.
     // Runtime construction reads only the STL files; no URDF parser is involved.
-    internal static class ManualKr500Factory
+    public static class ManualKr500Factory
     {
         private const double HalfPi = Math.PI / 2;
         private const double JointLimit = 6.10865238198015;
@@ -45,7 +45,7 @@ namespace RapidRobot
                 Type: EnumRobotJointType.Fixed)
         };
 
-        internal static CollisionTriangleMesh LoadLinkMesh(string modelDirectory, string linkName)
+        public static CollisionTriangleMesh LoadLinkMesh(string modelDirectory, string linkName)
         {
             Visual spec = Array.Find(Visuals, entry => entry.Link == linkName)
                 ?? throw new InvalidDataException("This Link has no STL visual: " + linkName);
@@ -54,7 +54,7 @@ namespace RapidRobot
                 spec.X, spec.Y, spec.Z, spec.Roll, spec.Pitch, spec.Yaw) });
         }
 
-        internal static RobotBody Create(string modelDirectory)
+        public static RobotBody Create(string modelDirectory)
         {
             using var model = new RobotModel();
             model.SetName("Kr500");

@@ -6,14 +6,14 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class UrdfVisualMesh
+    public static class UrdfVisualMesh
     {
         // RobotIO.Load uses RobotUrdfLoadOptions.LengthScale = 1000 by default.
         private const double RobotLengthScale = 1000.0;
 
-        internal static CollisionTriangleMesh Load(string urdfFile, string linkName)
+        public static CollisionTriangleMesh Load(string urdfFile, string linkName)
         {
             var document = XDocument.Load(urdfFile);
             var link = document.Root?.Elements("link")

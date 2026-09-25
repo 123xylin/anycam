@@ -5,11 +5,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace RapidRobot
+namespace AnyCAD.Robot.Studio
 {
-    internal static class Manual3AAcceptance
+    public static class Manual3AAcceptance
     {
-        internal static int Run(string reportPath, string modelRoot)
+        public static int Run(string reportPath, string modelRoot)
         {
             var report = new StringBuilder();
             try
