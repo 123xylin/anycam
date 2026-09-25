@@ -1,4 +1,4 @@
-<Window x:Class="RapidRobot.Wpf.MainWindow"
+﻿<Window x:Class="RapidRobot.Wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="AnyRobot Studio"
@@ -319,7 +319,7 @@
                         <Border Margin="16"
                                 Padding="4"
                                 HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
+                                VerticalAlignment="Bottom"
                                 Background="#E61A2638"
                                 BorderBrush="#334158"
                                 BorderThickness="1"
@@ -489,24 +489,17 @@
                                                        VerticalAlignment="Center" />
                                         </Border>
                                     </Grid>
-                                    <StackPanel Margin="16,2,0,0">
-                                        <TextBlock Text="BASE"
-                                                   Foreground="#8E9AAD"
-                                                   FontSize="10"
-                                                   Margin="0,7,0,0" />
-                                        <TextBlock Text="AXIS1 — AXIS6"
-                                                   Foreground="#8E9AAD"
-                                                   FontSize="10"
-                                                   Margin="0,7,0,0" />
-                                        <TextBlock Text="Kr500_flange"
-                                                   Foreground="#8E9AAD"
-                                                   FontSize="10"
-                                                   Margin="0,7,0,0" />
-                                        <TextBlock Text="TOOL_FRAME"
-                                                   Foreground="#8E9AAD"
-                                                   FontSize="10"
-                                                   Margin="0,7,0,0" />
-                                    </StackPanel>
+                                    <ItemsControl ItemsSource="{Binding SceneTreeItems}"
+                                                          Margin="16,2,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}"
+                                                           Foreground="#8E9AAD"
+                                                           FontSize="10"
+                                                           Margin="0,7,0,0" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -630,7 +623,8 @@
                                 Margin="14,0"
                                 Style="{StaticResource PanelTabControlStyle}">
                         <TabItem Header="示教">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                            <ScrollViewer DataContext="{Binding TeachTab}"
+                                          VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel Margin="0,14,0,18">
                                     <Border Style="{StaticResource CardStyle}">
@@ -991,7 +985,8 @@
                         </TabItem>
 
                         <TabItem Header="碰撞检查">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                            <ScrollViewer DataContext="{Binding CollisionTab}"
+                                          VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel Margin="0,14,0,18">
                                     <Border Style="{StaticResource CardStyle}">
@@ -1312,7 +1307,8 @@
                         </TabItem>
 
                         <TabItem Header="路径规划">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                            <ScrollViewer DataContext="{Binding PlanTab}"
+                                          VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <StackPanel Margin="0,14,0,18">
                                     <Border Style="{StaticResource CardStyle}">
@@ -1610,7 +1606,9 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                    <Border Margin="0,12,0,0"
+                                            DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            Style="{StaticResource CardStyle}">
                                         <StackPanel>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
