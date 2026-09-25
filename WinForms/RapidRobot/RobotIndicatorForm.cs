@@ -108,6 +108,7 @@ namespace RapidRobot
                     name = $"Joint {pathOffset}";
 
                 var unit = type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous ? "deg" :
+                //var unit = type == EnumRobotJointType.Revolute || type == EnumRobotJointType.Continuous ? "deg" :
                     type == EnumRobotJointType.Prismatic ? "mm" : string.Empty;
                 var rowIndex = mJointGrid.Rows.Add(pathOffset, name, type, string.Empty, unit,
                     type == EnumRobotJointType.Fixed ? "—" : "-",
