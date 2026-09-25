@@ -8,6 +8,9 @@
         MinHeight="760"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource CanvasBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="64" />
@@ -301,8 +304,7 @@
                         Margin="12,12,0,12"
                         Background="{StaticResource ViewerBrush}"
                         BorderBrush="#253147"
-                        BorderThickness="1"
-                        CornerRadius="11">
+                        BorderThickness="1">
                     <Grid ClipToBounds="True">
                         <ContentControl x:Name="ViewportHost" />
                     </Grid>
@@ -1333,11 +1335,12 @@
                                                 </Grid.ColumnDefinitions>
                                                 <ToggleButton Grid.Column="0"
                                                               Style="{StaticResource SegmentToggleStyle}"
-                                                              IsChecked="True"
+                                                              IsChecked="{Binding IsEndEffectorMode}"
                                                               Content="末端目标" />
                                                 <ToggleButton Grid.Column="1"
                                                               Margin="4,0,0,0"
                                                               Style="{StaticResource SegmentToggleStyle}"
+                                                              IsChecked="{Binding IsJointMode}"
                                                               Content="关节目标" />
                                             </Grid>
                                         </StackPanel>
@@ -1361,7 +1364,7 @@
                                                 <TextBlock FontFamily="Consolas"
                                                            FontSize="10"
                                                            Foreground="#475569"
-                                                           Text="X 1245.000   Y 380.000   Z 1080.000&#10;RX 0.000°   RY −90.000°   RZ 0.000°" />
+                                                           Text="{Binding TipPoseText}" />
                                             </Border>
                                              <Button x:Name="UseCurrentPoseButton"
                                                      Margin="0,10,0,0"
@@ -1372,7 +1375,9 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Margin="0,12,0,0" Style="{StaticResource CardStyle}">
+                                    <Border Margin="0,12,0,0"
+                                            Style="{StaticResource CardStyle}"
+                                            Visibility="{Binding IsEndEffectorMode, Converter={StaticResource BoolToVis}}">
                                         <StackPanel>
                                             <Grid Margin="0,0,0,10">
                                                 <StackPanel Orientation="Horizontal">
@@ -1482,8 +1487,8 @@
                                                               Text="{Binding PlanTimeout, UpdateSourceTrigger=PropertyChanged}" />
                                                 </StackPanel>
                                             </Grid>
-                                            <CheckBox Margin="0,12,0,0" IsChecked="True" Content="启用已确认的 Link 碰撞体" />
-                                            <CheckBox Margin="0,7,0,0" IsChecked="True" Content="保留当前末端姿态" />
+                                            <CheckBox Margin="0,12,0,0" IsChecked="{Binding UseLinkHulls}" Content="启用已确认的 Link 碰撞体" />
+                                            <CheckBox Margin="0,7,0,0" IsChecked="{Binding KeepCurrentTipPose}" Content="保留当前末端姿态" />
                                              <Button x:Name="SdkCheckIkButton"
                                                      Margin="0,12,0,0"
                                                      Style="{StaticResource BaseButtonStyle}"
@@ -1498,7 +1503,8 @@
                                              <Border Margin="0,14,0,0"
                                                      Padding="10"
                                                      Background="#F8FAFC"
-                                                     CornerRadius="7">
+                                                     CornerRadius="7"
+                                                     Visibility="{Binding IsJointMode, Converter={StaticResource BoolToVis}}">
                                                  <StackPanel>
                                                      <Grid Margin="0,0,0,10">
                                                          <TextBlock Text="单关节规划"
@@ -1561,6 +1567,7 @@
                                                      Style="{StaticResource PrimaryButtonStyle}"
                                                      Content="计算无碰撞路径"
                                                      Command="{Binding PlanPathCommand}"
+                                                     Visibility="{Binding IsEndEffectorMode, Converter={StaticResource BoolToVis}}"
                                                      IsEnabled="{Binding CanPlan}" />
                                         </StackPanel>
                                     </Border>

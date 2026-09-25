@@ -31,6 +31,32 @@ namespace RapidRobot.Wpf.ViewModels
         private readonly MainWindowViewModel root;
         private bool updatingUi;
 
+        // ---- 规划模式 ----
+
+        [ObservableProperty]
+        private bool isEndEffectorMode = true;
+
+        [ObservableProperty]
+        private bool isJointMode;
+
+        [ObservableProperty]
+        private bool useLinkHulls = true;
+
+        [ObservableProperty]
+        private bool keepCurrentTipPose = true;
+
+        partial void OnIsEndEffectorModeChanged(bool value)
+        {
+            if (value && IsJointMode)
+                IsJointMode = false;
+        }
+
+        partial void OnIsJointModeChanged(bool value)
+        {
+            if (value && IsEndEffectorMode)
+                IsEndEffectorMode = false;
+        }
+
         // ---- 目标位姿 ----
 
         [ObservableProperty]
@@ -118,6 +144,8 @@ namespace RapidRobot.Wpf.ViewModels
 
         // ---- 互斥状态转发（根 VM 计算） ----
 
+        public string TipPoseText => root.TipPoseText;
+
         public bool CanInteract => root.CanInteract;
         public bool CanPlan => root.CanPlan;
 
@@ -137,6 +165,9 @@ namespace RapidRobot.Wpf.ViewModels
                     break;
                 case nameof(MainWindowViewModel.CanPlan):
                     OnPropertyChanged(nameof(CanPlan));
+                    break;
+                case nameof(MainWindowViewModel.TipPoseText):
+                    OnPropertyChanged(nameof(TipPoseText));
                     break;
             }
         }
@@ -358,6 +389,14 @@ namespace RapidRobot.Wpf.ViewModels
                 PlanStatusText = "目标位姿包含无效数字。";
                 return;
             }
+            if (KeepCurrentTipPose &&
+                root.TryGetCurrentPose(out _, out _, out _,
+                    out var currentRx, out var currentRy, out var currentRz))
+            {
+                rx = currentRx;
+                ry = currentRy;
+                rz = currentRz;
+            }
             if (!MainWindowViewModel.TryParseNumber(CollisionResolution, out var collisionResolution) ||
                 collisionResolution <= 0)
             {
@@ -444,7 +483,8 @@ namespace RapidRobot.Wpf.ViewModels
                     options.CollisionResolution = collisionResolution;
                     options.TimeoutSeconds = timeoutSeconds;
                 }
-                model.ApplyTo(request);
+                if (UseLinkHulls)
+                    model.ApplyTo(request);
                 using var result = await Task.Run(() => session.Plan(request));
                 if (root.IsClosing)
                     return;

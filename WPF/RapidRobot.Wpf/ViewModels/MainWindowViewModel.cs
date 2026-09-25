@@ -118,6 +118,10 @@ namespace RapidRobot.Wpf.ViewModels
         [ObservableProperty]
         private bool sceneTreeExpanded = true;
 
+        // 末端位姿（起点/播放实时刷新）
+        [ObservableProperty]
+        private string tipPoseText = "—";
+
         // 播放
         [ObservableProperty]
         private double playbackPosition;
@@ -278,6 +282,7 @@ namespace RapidRobot.Wpf.ViewModels
             CollisionTab.RefreshAllUi();
             PlanTab.RefreshAllUi();
             RefreshPlaybackUi();
+            RefreshTipPose();
         }
 
         public void RefreshInteractionState()
@@ -329,6 +334,7 @@ namespace RapidRobot.Wpf.ViewModels
                 workspace.Collision?.UpdateLinkTransforms();
                 renderHost.RequestDraw(EnumUpdateFlags.Scene);
                 TeachTab.RefreshPoseUi();
+                RefreshTipPose();
                 RefreshPlaybackUi();
             }
         }
@@ -362,6 +368,8 @@ namespace RapidRobot.Wpf.ViewModels
                 controller.ShowTracking(IsTrajectoryVisible);
                 renderHost.SetStandardView();
                 renderHost.ZoomAll();
+                if (label == "Kr500")
+                    SetKr500DemoPose(body);
                 modelLabel = label;
                 RefreshAllUi();
                 PlanTab.UpdateDefaultTarget();
@@ -482,6 +490,22 @@ namespace RapidRobot.Wpf.ViewModels
             catch (Exception error)
             {
                 SetStatus("3A 创建失败：" + error.Message, true);
+            }
+        }
+
+        private static void SetKr500DemoPose(RobotBody body)
+        {
+            try
+            {
+                using var axis2 = new RobotJointIndex(1);
+                using var axis3 = new RobotJointIndex(2);
+                body.SetJointPosition(axis2, -0.45);
+                body.SetJointPosition(axis3, 0.6);
+                body.UpdateFrames();
+            }
+            catch
+            {
+                // 演示姿态仅为可视化优化，失败不影响加载。
             }
         }
 
@@ -670,6 +694,7 @@ namespace RapidRobot.Wpf.ViewModels
             workspace.Collision?.UpdateLinkTransforms();
             renderHost.RequestDraw(EnumUpdateFlags.Scene);
             TeachTab.RefreshPoseUi();
+            RefreshTipPose();
             RefreshPlaybackUi();
         }
 
@@ -708,6 +733,7 @@ namespace RapidRobot.Wpf.ViewModels
             workspace.Collision?.UpdateLinkTransforms();
             renderHost.RequestDraw(EnumUpdateFlags.Scene);
             TeachTab.RefreshPoseUi();
+            RefreshTipPose();
             RefreshPlaybackUi();
             if (!advanced)
                 RefreshInteractionState();
@@ -770,6 +796,19 @@ namespace RapidRobot.Wpf.ViewModels
             rz = euler.z;
             return double.IsFinite(x) && double.IsFinite(y) && double.IsFinite(z) &&
                 double.IsFinite(rx) && double.IsFinite(ry) && double.IsFinite(rz);
+        }
+
+        public void RefreshTipPose()
+        {
+            if (!TryGetCurrentPose(out var x, out var y, out var z,
+                    out var rx, out var ry, out var rz))
+            {
+                TipPoseText = "—";
+                return;
+            }
+            TipPoseText = "X " + Format(x) + "   Y " + Format(y) + "   Z " + Format(z) +
+                "\nRX " + Format(rx * 180.0 / Math.PI) + "°   RY " +
+                Format(ry * 180.0 / Math.PI) + "°   RZ " + Format(rz * 180.0 / Math.PI) + "°";
         }
 
         internal static bool TryParseNumber(string text, out double value)

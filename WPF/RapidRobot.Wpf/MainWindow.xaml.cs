@@ -27,6 +27,8 @@ namespace RapidRobot.Wpf
             ViewportHost.Content = renderView;
             ViewportBorder.SizeChanged += OnViewportBorderSizeChanged;
             LocationChanged += OnWindowLocationChanged;
+            Activated += OnWindowActivated;
+            Deactivated += OnWindowDeactivated;
             viewModel = new MainWindowViewModel(this);
             DataContext = viewModel;
             playbackTimer = new DispatcherTimer(DispatcherPriority.Render) {
@@ -121,6 +123,20 @@ namespace RapidRobot.Wpf
             ViewportOverlayPopup.VerticalOffset = v + 0.1;
             ViewportOverlayPopup.HorizontalOffset = h;
             ViewportOverlayPopup.VerticalOffset = v;
+        }
+
+        // 主窗口失活时隐藏浮层（Popup 是独立 HWND，不跟随窗口激活状态置顶）；
+        // 重新激活时恢复显示，位置由 Placement=Relative 自动对齐 ViewportBorder。
+        private void OnWindowActivated(object? sender, EventArgs e)
+        {
+            if (ViewportOverlayPopup != null && !ViewportOverlayPopup.IsOpen)
+                ViewportOverlayPopup.IsOpen = true;
+        }
+
+        private void OnWindowDeactivated(object? sender, EventArgs e)
+        {
+            if (ViewportOverlayPopup != null && ViewportOverlayPopup.IsOpen)
+                ViewportOverlayPopup.IsOpen = false;
         }
 
         // ==================== 渲染初始化 ====================
