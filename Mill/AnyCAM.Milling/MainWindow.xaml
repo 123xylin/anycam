@@ -1,0 +1,976 @@
+﻿<Window x:Class="AnyCAM.Milling.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:anycad="clr-namespace:AnyCAD.WPF;assembly=AnyCAD.WPF.NET"
+        xmlns:vm="clr-namespace:AnyCAM.Milling.ViewModels"
+        Title="AnyCAD Manufacturing	.NET"
+        Height="820" Width="1360"
+        MinHeight="620" MinWidth="1020"
+        Background="{StaticResource CanvasBrush}"
+        FontFamily="{StaticResource UiFont}"
+        FontSize="13"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+
+        <!--
+            三栏：左树 272、中间视口占满剩余、右侧参数面板 264（与左树同宽）。
+            标题栏整行取消：品牌标题并入左栏（与目录树同宽，保留原标题栏背景色），
+            视口和右面板直接顶到窗口顶部。
+            渲染控件有最小尺寸，中间列若用 * 会被右侧的 Auto 内容挤占，
+            所以左右都用固定列，保证视口吃掉全部剩余空间。
+        -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="272" />
+                <ColumnDefinition Width="*" MinWidth="240" />
+                <ColumnDefinition Width="264" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== 左：CAM 树 ===== -->
+            <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 品牌标题：与目录树同宽，保留原标题栏背景色 -->
+                    <Border Grid.Row="0" Background="{StaticResource ChromeBrush}"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="0,0,0,1" Padding="12,0">
+                        <StackPanel Height="48" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="30" Height="30"
+                                    Background="{StaticResource AccentBrush}" CornerRadius="8"
+                                    VerticalAlignment="Center">
+                                <TextBlock Text="M" Foreground="White" FontSize="16" FontWeight="Bold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="AnyCAM Mill" Foreground="{StaticResource TextBrush}"
+                                           FontSize="13" FontWeight="SemiBold" />
+                                <TextBlock Text="3-AXIS MILLING · Lite"
+                                           Foreground="{StaticResource MutedTextBrush}" FontSize="9.5" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 导入模型：当前版本使用内置示例零件 -->
+                    <Button Grid.Row="1" Content="导入模型"
+                            Style="{StaticResource BaseButtonStyle}"
+                            HorizontalAlignment="Stretch" Margin="12,10,12,10"
+                            Background="{StaticResource ChromeSecondaryBrush}"
+                            IsEnabled="False" ToolTip="使用内置示例零件" />
+
+                    <TreeView Grid.Row="2" x:Name="CamTree"
+                              ItemsSource="{Binding TreeRoots}"
+                              SelectedItemChanged="CamTree_SelectedItemChanged"
+                              Background="Transparent" BorderThickness="0"
+                              Padding="6,0,6,12"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                                <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0,1" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <StackPanel>
+                                                <Border x:Name="Row"
+                                                        Background="Transparent"
+                                                        CornerRadius="6"
+                                                        Padding="8,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- 展开箭头：叶子保留同宽占位，标题才能和分组行对齐后再整体缩进 -->
+                                                        <Grid Grid.Column="0" Width="20" Height="14"
+                                                              Margin="0,0,6,0">
+                                                            <ToggleButton Focusable="False"
+                                                                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                          Visibility="{Binding IsGroup, Converter={StaticResource BoolToVisibility}}"
+                                                                          Template="{StaticResource TreeExpanderTemplate}" />
+                                                        </Grid>
+
+                                                        <!-- 行级眼睛放标题前面：模型/毛坯/工序行可单独显隐 -->
+                                                        <ToggleButton Grid.Column="1"
+                                                                      Style="{StaticResource EyeToggleStyle}"
+                                                                      Margin="0,0,4,0"
+                                                                      IsChecked="{Binding IsVisible, Mode=TwoWay}"
+                                                                      Visibility="{Binding HasVisibility, Converter={StaticResource BoolToVisibility}}"
+                                                                      AutomationProperties.Name="{Binding Title, StringFormat=显隐 {0}}"
+                                                                      ToolTip="显示/隐藏" />
+
+                                                        <!-- 标题 + 行内副标题 -->
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal"
+                                                                    VerticalAlignment="Center">
+                                                            <!-- 刀路颜色圆点：与视口里这条工序的刀路同色；非策略行整颗折叠不占位 -->
+                                                            <Ellipse Width="8" Height="8"
+                                                                     Margin="0,0,6,0"
+                                                                     Fill="{Binding PathColorHex}"
+                                                                     Visibility="{Binding HasPathColor, Converter={StaticResource BoolToVisibility}}"
+                                                                     VerticalAlignment="Center" />
+                                                            <TextBlock x:Name="TitleText"
+                                                                       Text="{Binding Title}"
+                                                                       Foreground="{Binding RowForeground}"
+                                                                       FontSize="12.5"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                            <!--
+                                                                副标题必须可被挤掉：树宽 272、行内还要放徽标，
+                                                                标题 + 规格文字经常超宽。给 WrapPanel 式收缩做不到，
+                                                                这里让副标题独占剩余宽度并裁剪，标题保持完整。
+                                                            -->
+                                                            <TextBlock Text="{Binding InlineMeta}"
+                                                                       Foreground="{StaticResource MutedTextBrush}"
+                                                                       FontSize="10"
+                                                                       Margin="8,0,0,0"
+                                                                       VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+
+                                                        <!-- 状态徽标：圆形图标徽章（✓/⟳/✕/○），文字收进 ToolTip 省地方 -->
+                                                        <Border Grid.Column="3"
+                                                                Width="16" Height="16"
+                                                                CornerRadius="8"
+                                                                Background="{Binding StatusBackground}"
+                                                                VerticalAlignment="Center"
+                                                                Margin="6,0,0,0"
+                                                                Visibility="{Binding HasStatus, Converter={StaticResource BoolToVisibility}}"
+                                                                ToolTip="{Binding StatusText}"
+                                                                AutomationProperties.Name="{Binding StatusText}">
+                                                            <TextBlock Text="{Binding StatusIcon}"
+                                                                       Foreground="{Binding StatusForeground}"
+                                                                       FontSize="9"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center" />
+                                                        </Border>
+
+                                                        <!-- 策略分组行的行内命令：新建 / 全部计算 -->
+                                                        <StackPanel Grid.Column="4" Orientation="Horizontal"
+                                                                    VerticalAlignment="Center"
+                                                                    Visibility="{Binding ShowStrategyActions, Converter={StaticResource BoolToVisibility}}">
+                                                            <Button Content="＋" Style="{StaticResource TreeIconButtonStyle}"
+                                                                    AutomationProperties.Name="新建策略"
+                                                                    ToolTip="新建策略"
+                                                                    Command="{Binding DataContext.AddStrategyCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                            <Button Content="⟳" Style="{StaticResource TreeIconButtonStyle}"
+                                                                    Margin="2,0,0,0"
+                                                                    AutomationProperties.Name="全部计算"
+                                                                    ToolTip="全部计算"
+                                                                    Command="{Binding DataContext.ComputeAllCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+
+                                                        <!-- 刀具分组行的行内命令：添加刀具（功能暂未实现） -->
+                                                        <StackPanel Grid.Column="4" Orientation="Horizontal"
+                                                                    VerticalAlignment="Center"
+                                                                    Visibility="{Binding ShowToolActions, Converter={StaticResource BoolToVisibility}}">
+                                                            <Button Content="＋" Style="{StaticResource TreeIconButtonStyle}"
+                                                                    AutomationProperties.Name="添加刀具"
+                                                                    ToolTip="添加刀具"
+                                                                    Command="{Binding DataContext.AddToolCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!--
+                                                    子级缩进 14px（约两个字符）。不要改成更小：
+                                                    行内 Grid 的 Padding=8 会把标题推到右边，缩进小于这个量时
+                                                    子项反而比父项更靠左，看起来像反缩进。
+                                                -->
+                                                <ItemsPresenter x:Name="ItemsHost" Margin="14,0,0,0" />
+                                            </StackPanel>
+
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsExpanded" Value="False">
+                                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Row" Property="Background"
+                                                            Value="{StaticResource AccentSoftBrush}" />
+                                                    <Setter TargetName="TitleText" Property="Foreground"
+                                                            Value="{StaticResource AccentBrush}" />
+                                                    <Setter TargetName="TitleText" Property="FontWeight" Value="SemiBold" />
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True" />
+                                                        <Condition Property="IsSelected" Value="False" />
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter TargetName="Row" Property="Background" Value="#1B2740" />
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+
+                        <TreeView.Resources>
+                            <!-- 递归模板：同一模板套用所有层级 -->
+                            <HierarchicalDataTemplate DataType="{x:Type vm:TreeNode}"
+                                                      ItemsSource="{Binding Children}" />
+                            <!--
+                                树的滚动条走深色主题：默认模板的浅灰槽在深色左栏上像一条白边。
+                                PanelScrollViewerStyle 只带竖条（树的横向滚动已禁用）。
+                            -->
+                            <Style TargetType="ScrollViewer" BasedOn="{StaticResource PanelScrollViewerStyle}" />
+                        </TreeView.Resources>
+                    </TreeView>
+                </Grid>
+            </Border>
+
+            <!--
+                ===== 中：三维视口 =====
+                视口本身就是一块底色，再加外框和留白只会把画面圈小；
+                只留 1px 左分隔线，与右侧面板的竖线对称，其余全部让给场景。
+            -->
+            <Border Grid.Column="1" Background="{StaticResource ViewerBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <!--
+                    渲染控件必须直接铺在这个 Grid 里，且这个 Grid 就是它的父容器：
+                    外面再套一层 Border 会让 ContentControl 的宿主尺寸和视口尺寸脱钩，
+                    引擎按宿主算出的画布比边框小，刀路这类细线会被挤出可见区。
+                -->
+                <Grid x:Name="ViewportHost" ClipToBounds="True" />
+            </Border>
+
+            <Grid Grid.Column="1" ClipToBounds="True">
+                <!--
+                    场景对象浮层已移除：显隐职责由左树的行级眼睛承担
+                    （模型/毛坯/各条工序行），不再在视口里重复一份。
+                -->
+
+                <!-- 视图导航竖条：浮在三维场景上；仿真入口挂在最下面 -->
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                            Margin="0,0,12,12">
+                    <Button Content="⊹" Style="{StaticResource ViewportToolButtonStyle}"
+                            AutomationProperties.Name="适合窗口"
+                            ToolTip="适合窗口" Click="ZoomAll_Click" />
+                    <Button Content="▦" Style="{StaticResource ViewportToolButtonStyle}"
+                            AutomationProperties.Name="坐标网格"
+                            ToolTip="坐标网格" Click="ToggleGrid_Click" />
+                    <Button Content="◱" Style="{StaticResource ViewportToolButtonStyle}"
+                            AutomationProperties.Name="标准视图"
+                            ToolTip="标准视图" Click="StandardView_Click" />
+                    <Button Content="{Binding SimEntryIcon}"
+                            Style="{StaticResource ViewportToolButtonStyle}"
+                            AutomationProperties.Name="仿真"
+                            ToolTip="{Binding SimEntryToolTip}"
+                            Command="{Binding ToggleSimulationCommand}" />
+                </StackPanel>
+
+                <!--
+                    仿真浮层：点右下角 ▶ 后从视图底部中间升起。
+                    倍率只影响播放速度不影响刀位；■ 退出后浮层收回。
+                -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                            Margin="0,0,0,12"
+                            Visibility="{Binding IsSimulating, Converter={StaticResource BoolToVisibility}}">
+                    <ComboBox Width="72" Height="36"
+                              Style="{StaticResource FieldComboStyle}"
+                              AutomationProperties.Name="仿真倍率"
+                              ToolTip="仿真速度"
+                              ItemsSource="{Binding SimRateOptions}"
+                              SelectedIndex="{Binding SimRateIndex}" />
+                    <Button Width="36" Height="36"
+                            Style="{StaticResource ViewportToolButtonStyle}"
+                            Margin="8,0,0,0"
+                            AutomationProperties.Name="仿真暂停"
+                            ToolTip="{Binding SimPauseToolTip}"
+                            Command="{Binding ToggleSimPauseCommand}">
+                        <TextBlock Text="{Binding SimPauseIcon}" />
+                    </Button>
+                    <Button Style="{StaticResource ViewportToolButtonStyle}"
+                            Margin="4,0,0,0"
+                            AutomationProperties.Name="重新播放"
+                            ToolTip="重新播放"
+                            Command="{Binding ReplaySimulationCommand}">
+                        <TextBlock Text="⟲" />
+                    </Button>
+                    <Button Style="{StaticResource ViewportToolButtonStyle}"
+                            Margin="4,0,0,0"
+                            AutomationProperties.Name="退出仿真"
+                            ToolTip="退出仿真"
+                            Command="{Binding ToggleSimulationCommand}">
+                        <TextBlock Text="■" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== 右：参数面板 ===== -->
+            <Border Grid.Column="2" Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
+                    ClipToBounds="True">
+                <Grid HorizontalAlignment="Stretch" ClipToBounds="True" MinWidth="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 面板头：标题 + 状态点（子标题与树行信息重复，已去掉） -->
+                    <Grid Grid.Row="0" Margin="12,12,12,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="{Binding PanelTitle}"
+                                   Style="{StaticResource SectionTitleStyle}" />
+                        <Ellipse Grid.Column="1" Width="9" Height="9" VerticalAlignment="Center"
+                                 Fill="{Binding PanelStatusColor}" />
+                    </Grid>
+
+                    <!--
+                        面板正文随选中对象切换：工序行显示四个参数标签页，
+                        其他对象（模型/毛坯/刀具/分组）显示只读信息卡。
+                    -->
+                    <Grid Grid.Row="1" HorizontalAlignment="Stretch" MinWidth="0">
+
+                    <!-- 四个标签页 -->
+                    <TabControl Style="{StaticResource PanelTabControlStyle}"
+                                HorizontalAlignment="Stretch" MinWidth="0" Padding="0"
+                                Visibility="{Binding PanelIsOperation, Converter={StaticResource BoolToVisibility}}">
+
+                        <!-- ===== 加工 ===== -->
+                        <TabItem Header="加工">
+                            <ScrollViewer Style="{StaticResource PanelScrollViewerStyle}"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel Margin="8,10,8,14">
+
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Style="{StaticResource CardHeaderStyle}">
+                                                <TextBlock Text="策略" Style="{StaticResource SectionTitleStyle}" />
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="策略类型" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <TextBlock Text="{Binding SelectedNode.Title}"
+                                                               Foreground="{StaticResource TextBrush}"
+                                                               FontSize="12" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- 换刀：每道工序可配不同的刀，改完标记重算 -->
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="刀具" Style="{StaticResource FieldLabelStyle}" />
+                                                <ComboBox Grid.Column="1"
+                                                          Style="{StaticResource FieldComboStyle}"
+                                                          AutomationProperties.Name="工序刀具"
+                                                          ItemsSource="{Binding ToolOptions}"
+                                                          SelectedItem="{Binding SelectedToolName}" />
+                                            </Grid>
+
+                                            <!-- 加工面：各策略吃进引擎的数据不同，在这里说清楚 -->
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="加工面" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <TextBlock Text="{Binding GeometrySummary}"
+                                                               Foreground="{StaticResource TextBrush}"
+                                                               FontSize="11.5" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="加工坐标系" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <TextBlock Text="MCS1 · 已对齐工件"
+                                                               Foreground="{StaticResource TextBrush}"
+                                                               FontSize="12" VerticalAlignment="Center" />
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GroupSeparatorStyle}" />
+
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Style="{StaticResource CardHeaderStyle}">
+                                                <TextBlock Text="切削参数" Style="{StaticResource SectionTitleStyle}" />
+                                                <Border Style="{StaticResource ChipStyle}" HorizontalAlignment="Right">
+                                                    <TextBlock Text="粗加工" Style="{StaticResource ChipTextStyle}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="加工余量" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding StockToLeave, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="行距" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding StepOver, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <StackPanel Margin="0,0,0,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="68" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="每层下切" Style="{StaticResource FieldLabelStyle}" />
+                                                    <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                     Text="{Binding StepDown, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                            <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                        </Grid>
+                                                    </Border>
+                                                </Grid>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Style="{StaticResource GroupSeparatorStyle}" />
+
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Style="{StaticResource CardHeaderStyle}">
+                                                <TextBlock Text="深度与安全" Style="{StaticResource SectionTitleStyle}" />
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="起始深度" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding StartDepth, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="最终深度" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding FinalDepth, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="安全高度" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding SafeHeight, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== 刀具 ===== -->
+                        <TabItem Header="刀具">
+                            <ScrollViewer Style="{StaticResource PanelScrollViewerStyle}"
+                                          VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="8,10,8,14">
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Style="{StaticResource CardHeaderStyle}">
+                                                <TextBlock Text="刀具定义" Style="{StaticResource SectionTitleStyle}" />
+                                                <Border Style="{StaticResource ChipStyle}" HorizontalAlignment="Right">
+                                                    <TextBlock Text="T01 · HSK63A" Style="{StaticResource ChipTextStyle}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="刀具号" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" MaxWidth="120"
+                                                        HorizontalAlignment="Left">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolNumber, UpdateSourceTrigger=LostFocus}" />
+                                                        <TextBlock Grid.Column="1" Text="号" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="直径" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolDiameter, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="刀尖圆角" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolCornerRadius, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="刃长" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolFluteLength, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="悬长" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolLength, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="刀刃数" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" MaxWidth="120"
+                                                        HorizontalAlignment="Left">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding ToolFluteCount, UpdateSourceTrigger=LostFocus}" />
+                                                        <TextBlock Grid.Column="1" Text="刃" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Style="{StaticResource CaptionStyle}" TextWrapping="Wrap"
+                                               Text="刀尖圆角等于半径即为球头刀，等于 0 为平底刀。刀具改动会同时更新所有工序的刀具半径。" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== 进给 ===== -->
+                        <TabItem Header="进给">
+                            <ScrollViewer Style="{StaticResource PanelScrollViewerStyle}"
+                                          VerticalScrollBarVisibility="Auto">
+                                <StackPanel Margin="8,10,8,14">
+                                    <Border Style="{StaticResource CardStyle}">
+                                        <StackPanel>
+                                            <Grid Style="{StaticResource CardHeaderStyle}">
+                                                <TextBlock Text="主轴与进给" Style="{StaticResource SectionTitleStyle}" />
+                                                <Border Style="{StaticResource ChipStyle}" HorizontalAlignment="Right">
+                                                    <TextBlock Text="精加工" Style="{StaticResource ChipTextStyle}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="主轴转速 S" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding SpindleSpeed, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0}}" />
+                                                        <TextBlock Grid.Column="1" Text="rpm" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="切削进给 F" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding CutFeed, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm/min" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="下刀速度" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding PlungeFeed, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm/min" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="快进" Style="{StaticResource FieldLabelStyle}" />
+                                                <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                                 Text="{Binding RapidFeed, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0}}" />
+                                                        <TextBlock Grid.Column="1" Text="mm/min" Style="{StaticResource FieldUnitStyle}" />
+                                                    </Grid>
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="68" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="冷却液" Style="{StaticResource FieldLabelStyle}" />
+                                                <ComboBox Grid.Column="1"
+                                                          Style="{StaticResource FieldComboStyle}"
+                                                          ItemsSource="{Binding CoolantOptions}"
+                                                          SelectedIndex="{Binding CoolantIndex}" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== NC ===== -->
+                        <TabItem Header="NC">
+                            <Grid Margin="8,10,8,14">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+
+                                <Grid Grid.Row="0" Margin="0,10,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="后处理器"
+                                               Style="{StaticResource FieldLabelStyle}" />
+                                    <ComboBox Grid.Row="0" Grid.Column="1"
+                                              Style="{StaticResource FieldComboStyle}"
+                                              AutomationProperties.Name="后处理器"
+                                              ItemsSource="{Binding PostNameOptions}"
+                                              SelectedIndex="{Binding PostNameIndex}"
+                                              ToolTip="{Binding PostDescriptions[0]}" />
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="单位"
+                                               Style="{StaticResource FieldLabelStyle}"
+                                               Margin="0,10,0,0" />
+                                    <ComboBox Grid.Row="1" Grid.Column="1"
+                                              Style="{StaticResource FieldComboStyle}"
+                                              AutomationProperties.Name="输出单位"
+                                              ItemsSource="{Binding PostUnitOptions}"
+                                              SelectedIndex="{Binding PostUnitIndex}"
+                                              Margin="0,10,0,0" />
+                                </Grid>
+
+                                <!-- 后处理 = 导出 G 代码：动作紧跟在格式参数下面，不挤占下拉框宽度 -->
+                                <Button Grid.Row="2" Content="后处理"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        AutomationProperties.Name="后处理"
+                                        HorizontalAlignment="Stretch"
+                                        Margin="0,10,0,0"
+                                        Command="{Binding PostProcessCommand}" />
+
+                                <Border Grid.Row="3" Background="{StaticResource ChromeSecondaryBrush}"
+                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                                            CornerRadius="8" Margin="0,10,0,0" Padding="10">
+                                    <ScrollViewer Style="{StaticResource PanelScrollViewerStyle}"
+                                              HorizontalScrollBarVisibility="Auto">
+                                        <TextBox Text="{Binding NcPreview, Mode=OneWay}"
+                                                 IsReadOnly="True"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 Foreground="#A8BBD4"
+                                                 FontFamily="Consolas"
+                                                 FontSize="11"
+                                                 TextWrapping="NoWrap"
+                                                 AcceptsReturn="True" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid>
+                        </TabItem>
+
+                    </TabControl>
+
+                    <!--
+                        非工序对象的只读信息卡：字段来自引擎对象，
+                        不提供编辑——参数编辑仍只发生在选中工序行时。
+                    -->
+                    <ScrollViewer Style="{StaticResource PanelScrollViewerStyle}"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding PanelIsOperation, Converter={StaticResource InverseBoolToVisibility}}">
+                        <StackPanel Margin="8,10,8,14">
+                            <ItemsControl ItemsSource="{Binding PanelFields}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <!-- Label 为空的行做整行说明，不留 68px 的标签空位 -->
+                                            <TextBlock Text="{Binding Label}"
+                                                       Style="{StaticResource FieldLabelStyle}"
+                                                       Width="68"
+                                                       Visibility="{Binding IsFullRow, Converter={StaticResource InverseBoolToVisibility}}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}"
+                                                       Style="{StaticResource FieldLabelStyle}"
+                                                       Visibility="{Binding IsFullRow, Converter={StaticResource BoolToVisibility}}" />
+                                            <Border Grid.Column="1"
+                                                    Style="{StaticResource FieldBoxStyle}"
+                                                    Padding="8,0"
+                                                    Height="Auto" MinHeight="30"
+                                                    Visibility="{Binding IsFullRow, Converter={StaticResource InverseBoolToVisibility}}">
+                                                <TextBlock Text="{Binding Value}"
+                                                           Foreground="{StaticResource TextBrush}"
+                                                           FontSize="11.5"
+                                                           Margin="0,6"
+                                                           TextWrapping="Wrap" />
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{Binding PanelHint}"
+                                       Style="{StaticResource CaptionStyle}"
+                                       TextWrapping="Wrap"
+                                       Margin="2,4,2,0" />
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    </Grid>
+
+                    <!--
+                        底部动作条：仿真控制已挪到视口（右下 ▶ 入口，仿真中左下浮层出速度/暂停/退出），
+                        这里只留全局状态与选中工序的计算入口。
+                    -->
+                    <Border Grid.Row="2" Background="{StaticResource ChromeBrush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
+                            Padding="12,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding StatusStats}"
+                                       Style="{StaticResource CaptionStyle}" VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="生成刀路"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    MinWidth="92"
+                                    Command="{Binding GenerateToolpathCommand}" />
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
+                    <!-- 后处理按钮已挪进 NC 标签页（导出 G 代码的动作跟着产物走） -->
+
+                    <!-- ==================== 状态栏 ==================== -->
+        <Border Grid.Row="1" Background="{StaticResource ChromeBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}"
+                           Foreground="{StaticResource MutedTextBrush}" FontSize="10.5"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="1" Text="{Binding StatusStats}"
+                           Foreground="{StaticResource MutedTextBrush}" FontSize="10.5"
+                           VerticalAlignment="Center" Margin="16,0,0,0" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

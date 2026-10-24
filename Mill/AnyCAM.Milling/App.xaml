@@ -1,0 +1,17 @@
+<Application x:Class="AnyCAM.Milling.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml" Exit="Application_Exit">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Tokens.xaml" />
+                <ResourceDictionary Source="Themes/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- 值转换器：需要 code-behind 命名空间，放在这里而不是 Themes/*.xaml -->
+            <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"
+                                                   xmlns:conv="clr-namespace:AnyCAM.Milling" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

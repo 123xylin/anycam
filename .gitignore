@@ -1,3 +1,7 @@
 obj
 bin
 .vs
+docs
+/Mill/Test/Temp
+/Mill/API-Rename-List.md
+/Mill/nuget.config

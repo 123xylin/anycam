@@ -1,0 +1,41 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(105,34): error CS0246: 未能找到类型或命名空间名“ToolController”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\MainWindow.xaml.cs(66,62): error CS0117: “EnumStandardView”未包含“Iso”的定义 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(159,65): error CS0117: “GPnt”未包含“Zero”的定义 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(159,71): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.GDir”转换为“bool” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(246,49): error CS0246: 未能找到类型或命名空间名“PathOperation”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(284,41): error CS0246: 未能找到类型或命名空间名“PathOperation”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(425,25): error CS0029: 无法将类型“AnyCAD.Foundation.BrepSceneNode”隐式转换为“AnyCAD.Foundation.GroupSceneNode” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(379,42): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.MaterialInstance”转换为“AnyCAD.Foundation.Vector3” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(396,52): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.MaterialInstance”转换为“AnyCAD.Foundation.Vector3” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(405,13): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(407,19): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(410,13): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(412,19): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(223,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(224,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(225,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+
+生成失败。
+
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(105,34): error CS0246: 未能找到类型或命名空间名“ToolController”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\MainWindow.xaml.cs(66,62): error CS0117: “EnumStandardView”未包含“Iso”的定义 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(159,65): error CS0117: “GPnt”未包含“Zero”的定义 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(159,71): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.GDir”转换为“bool” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(246,49): error CS0246: 未能找到类型或命名空间名“PathOperation”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(284,41): error CS0246: 未能找到类型或命名空间名“PathOperation”(是否缺少 using 指令或程序集引用?) [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(425,25): error CS0029: 无法将类型“AnyCAD.Foundation.BrepSceneNode”隐式转换为“AnyCAD.Foundation.GroupSceneNode” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(379,42): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.MaterialInstance”转换为“AnyCAD.Foundation.Vector3” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(396,52): error CS1503: 参数 2: 无法从“AnyCAD.Foundation.MaterialInstance”转换为“AnyCAD.Foundation.Vector3” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(405,13): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(407,19): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(410,13): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\Engine\CamSession.cs(412,19): error CS0120: 对象引用对于非静态的字段、方法或属性“MaterialManager.CreateInstanceByName(string, string)”是必需的 [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(223,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(224,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\ViewModels\MainWindowViewModel.cs(225,22): error CS0103: 当前上下文中不存在名称“EnumPostCoolant” [D:\OpenSource\anyrobot\Mill\AnyCAM.Milling\AnyCAM.Milling_2fxljpgv_wpftmp.csproj]
+    0 个警告
+    16 个错误
+
+已用时间 00:00:01.30
