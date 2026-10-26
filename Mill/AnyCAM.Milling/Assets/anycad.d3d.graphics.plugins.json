@@ -1,0 +1,11 @@
+{
+  "Version": "1.0",
+  "Plugins": [
+    {
+      "Name": "Graphics.D3D",
+      "Url": "AnyCAD.Graphics.Window.D3D",
+      "Enabled": false,
+      "Group": "Graphics"
+    }
+  ]
+}

@@ -1,7 +1,8 @@
-﻿using AnyCAD.Foundation;
+using AnyCAD.Foundation;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace AnyCAM.Milling.Engine
@@ -36,11 +37,25 @@ namespace AnyCAM.Milling.Engine
             Strategy = strategy;
         }
 
-        public string Name { get; }
+        public string Name { get; internal set; }
         public string Strategy { get; set; }
 
         /// <summary>本工序用的刀；名字对应 <see cref="ToolEntry.Name"/>，可在界面上换</summary>
         public string ToolName { get; set; } = string.Empty;
+
+        /// <summary>按孔径分组钻孔时：本工序只加工该直径（mm）</summary>
+        public double? DrillDiameterMm { get; internal set; }
+
+        /// <summary>本钻孔工序包含的孔数（识别结果）</summary>
+        public int DrillHoleCount { get; internal set; }
+
+        /// <summary>按槽规格分组挖槽时：代表尺寸与底面列表（与 <see cref="PocketSlotGroup"/> 对应）</summary>
+        public double? PocketLengthMm { get; internal set; }
+        public double? PocketWidthMm { get; internal set; }
+        public double? PocketDepthMm { get; internal set; }
+        public double? PocketAreaMm2 { get; internal set; }
+        public int PocketSlotCount { get; internal set; }
+        internal List<TopoShape>? PocketBottomFaces { get; set; }
 
         public PathOperation? Operation { get; private set; }
 
@@ -132,11 +147,21 @@ namespace AnyCAM.Milling.Engine
     {
         private readonly List<OperationEntry> _operations = new();
         private readonly List<ToolEntry> _tools = new();
+        public WorkCoordinateSetup WorkZero { get; } = new();
+
+        private IReadOnlyList<HoleDiameterGroup> _holeGroups = Array.Empty<HoleDiameterGroup>();
+        private IReadOnlyList<PocketSlotGroup> _pocketGroups = Array.Empty<PocketSlotGroup>();
+        private int _pocketBottomSkippedCount;
         private TopoShape? _part;
+        private TopoShape? _geometryCachePart;
+        private double? _cachedHoleBottomZ;
+        private List<TopoShape>? _cachedPocketBottomFaces;
         /// <summary>当前零件是否为内置示例零件（只有它知道孔位，才能给等高填孔）</summary>
         private bool _partIsTestPiece;
         /// <summary>填实钻孔后的等高实体，按零件缓存</summary>
         private TopoShape? _waterlineSolid;
+        /// <summary>用户指定顶面后的简述（面铣/挖槽基准）</summary>
+        private string _machiningTopSummary = "顶面（自动 · +Z 最高）";
 
         public CamSession()
         {
@@ -175,6 +200,248 @@ namespace AnyCAM.Milling.Engine
             _tools.Add(new ToolEntry("T03 · 钻头 φ10", "HSK63A · 2 刃 · 140°", drill));
         }
 
+        /// <summary>最近一次孔识别结果（按直径分组）</summary>
+        public IReadOnlyList<HoleDiameterGroup> HoleGroups => _holeGroups;
+
+        /// <summary>最近一次槽识别结果（按深度+面积分组，每组对应一条 2D 挖槽工序）</summary>
+        public IReadOnlyList<PocketSlotGroup> PocketGroups => _pocketGroups;
+
+        /// <summary>为刀库补一把与孔径匹配的钻头；已存在同直径钻头则复用</summary>
+        public ToolEntry EnsureDrillTool(double diameterMm)
+        {
+            foreach (var entry in _tools)
+            {
+                if (entry.Tool.GetTipAngle() < 1.0)
+                    continue;
+                if (Math.Abs(entry.Tool.GetDiameter() - diameterMm) < 0.08)
+                    return entry;
+            }
+
+            var label = $"T{_tools.Count + 1:D2} · 钻头 φ{diameterMm:F0}";
+            var drill = new Tool(EnumToolType.EndMill);
+            drill.SetDiameter(diameterMm);
+            drill.SetCornerRadius(0);
+            drill.SetTipAngle(140);
+            drill.SetFluteLength(Math.Max(20, diameterMm * 3));
+            drill.SetLength(Math.Max(40, diameterMm * 6));
+            drill.SetFluteCount(2);
+            drill.SetHorizFeed(400);
+            drill.SetVertFeed(120);
+
+            var toolNumber = _tools.Count + 1;
+            var created = new ToolEntry(label, $"HSK63A · 2 刃 · 140° · φ{diameterMm:F0}", drill);
+            created.Controller.SetToolNumber(toolNumber);
+            _tools.Add(created);
+            return created;
+        }
+
+        /// <summary>
+        /// 按识别到的孔径重建「钻孔」工序：每种直径一条 OP + 一把匹配钻头。
+        /// 返回新建的工序条目（可能为空）。
+        /// </summary>
+        public IReadOnlyList<OperationEntry> RebuildDrillOperationsFromPart()
+        {
+            if (_part == null)
+            {
+                _holeGroups = Array.Empty<HoleDiameterGroup>();
+            }
+            else
+            {
+                var report = HoleRecognizer.Analyze(_part);
+                _holeGroups = report.Groups;
+                SessionLog.Info("孔识别 · " + report.ToSummaryText().Replace("\n", " · "));
+            }
+
+            var firstDrillIndex = _operations.FindIndex(o => o.Strategy == "钻孔");
+            for (var i = _operations.Count - 1; i >= 0; i--)
+            {
+                if (_operations[i].Strategy != "钻孔")
+                    continue;
+
+                var removed = _operations[i];
+                _operations.RemoveAt(i);
+                removed.Dispose();
+            }
+
+            var insertAt = firstDrillIndex >= 0 ? firstDrillIndex : _operations.Count;
+            var created = new List<OperationEntry>();
+
+            if (_holeGroups.Count == 0)
+            {
+                var fallback = InsertOperation("钻孔", insertAt);
+                fallback.DrillDiameterMm = null;
+                fallback.DrillHoleCount = 0;
+                created.Add(fallback);
+                return created;
+            }
+
+            foreach (var group in _holeGroups)
+            {
+                var tool = EnsureDrillTool(group.DiameterMm);
+                var entry = InsertOperation("钻孔", insertAt++);
+                entry.DrillDiameterMm = group.DiameterMm;
+                entry.DrillHoleCount = group.MachinableFromTopCount;
+                entry.ToolName = tool.Name;
+                entry.Name = $"OP{IndexOf(entry) + 1} · 钻孔 φ{group.DiameterMm:F0}";
+                created.Add(entry);
+            }
+
+            RenumberOperationNames();
+            return created;
+        }
+
+        /// <summary>
+        /// 按识别到的槽规格重建「2D 挖槽」工序：深度与面积相同的一类槽合并为一条 OP。
+        /// </summary>
+        public IReadOnlyList<OperationEntry> RebuildPocketOperationsFromPart()
+        {
+            var slots = PocketSlotRecognizer.Recognize(_part);
+            _pocketBottomSkippedCount = PocketSlotRecognizer.CountBottomAccess(slots);
+            _pocketGroups = PocketSlotRecognizer.GroupByDepthAndArea(slots);
+
+            var firstPocketIndex = _operations.FindIndex(o => o.Strategy == "2D挖槽");
+            for (var i = _operations.Count - 1; i >= 0; i--)
+            {
+                if (_operations[i].Strategy != "2D挖槽")
+                    continue;
+
+                var removed = _operations[i];
+                _operations.RemoveAt(i);
+                removed.Dispose();
+            }
+
+            var insertAt = firstPocketIndex >= 0 ? firstPocketIndex : _operations.Count;
+            var created = new List<OperationEntry>();
+
+            if (_pocketGroups.Count == 0)
+            {
+                var fallback = InsertOperation("2D挖槽", insertAt);
+                ClearPocketAssignment(fallback);
+                created.Add(fallback);
+                RenumberOperationNames();
+                return created;
+            }
+
+            foreach (var group in _pocketGroups)
+            {
+                var entry = InsertOperation("2D挖槽", insertAt++);
+                AssignPocketGroup(entry, group);
+                ApplyDefaultParams(entry.Operation!, "2D挖槽", entry);
+                created.Add(entry);
+            }
+
+            RenumberOperationNames();
+            return created;
+        }
+
+        /// <summary>
+        /// 与 <see cref="RebuildPocketOperationsFromPart"/> 共用 <see cref="_pocketGroups"/>：
+        /// 每种槽规格一条槽壁精加工 OP，底面/尺寸与对应挖槽一致。
+        /// </summary>
+        public IReadOnlyList<OperationEntry> RebuildSlotWallOperationsFromPart()
+        {
+            var firstIndex = _operations.FindIndex(o => o.Strategy == "槽壁精加工");
+            for (var i = _operations.Count - 1; i >= 0; i--)
+            {
+                if (_operations[i].Strategy != "槽壁精加工")
+                    continue;
+
+                var removed = _operations[i];
+                _operations.RemoveAt(i);
+                removed.Dispose();
+            }
+
+            var insertAt = firstIndex >= 0 ? firstIndex : _operations.Count;
+            var created = new List<OperationEntry>();
+
+            if (_pocketGroups.Count == 0)
+            {
+                var fallback = InsertOperation("槽壁精加工", insertAt);
+                ClearPocketAssignment(fallback);
+                created.Add(fallback);
+                RenumberOperationNames();
+                return created;
+            }
+
+            foreach (var group in _pocketGroups)
+            {
+                var entry = InsertOperation("槽壁精加工", insertAt++);
+                AssignPocketGroup(entry, group);
+                ApplyDefaultParams(entry.Operation!, "槽壁精加工", entry);
+                created.Add(entry);
+            }
+
+            RenumberOperationNames();
+            return created;
+        }
+
+        private static void AssignPocketGroup(OperationEntry entry, PocketSlotGroup group)
+        {
+            entry.PocketLengthMm = group.LengthMm;
+            entry.PocketWidthMm = group.WidthMm;
+            entry.PocketDepthMm = group.DepthMm;
+            entry.PocketAreaMm2 = group.AreaMm2;
+            entry.PocketSlotCount = group.Count;
+            entry.PocketBottomFaces = group.BottomFaces.ToList();
+        }
+
+        private static void ClearPocketAssignment(OperationEntry entry)
+        {
+            entry.PocketLengthMm = null;
+            entry.PocketWidthMm = null;
+            entry.PocketDepthMm = null;
+            entry.PocketAreaMm2 = null;
+            entry.PocketSlotCount = 0;
+            entry.PocketBottomFaces = null;
+        }
+
+        private int IndexOf(OperationEntry entry) => _operations.IndexOf(entry);
+
+        private void RenumberOperationNames()
+        {
+            for (var i = 0; i < _operations.Count; i++)
+            {
+                var entry = _operations[i];
+                if (entry.Strategy == "钻孔" && entry.DrillDiameterMm is double d)
+                {
+                    var drillGroup = _holeGroups.FirstOrDefault(g => Math.Abs(g.DiameterMm - d) < 0.08);
+                    var title = drillGroup?.DrillTitle ?? $"φ{d:F0}";
+                    entry.Name = $"OP{i + 1} · 钻孔 {title}";
+                }
+                else if (entry.Strategy == "2D挖槽" && entry.PocketSlotCount > 0 && entry.PocketDepthMm is double pocketDepth)
+                {
+                    var l = entry.PocketLengthMm ?? 0;
+                    var w = entry.PocketWidthMm ?? 0;
+                    var suffix = entry.PocketSlotCount > 1 ? $" (×{entry.PocketSlotCount})" : string.Empty;
+                    entry.Name = $"OP{i + 1} · 2D挖槽 · {l:F0}×{w:F0}×{pocketDepth:F0}{suffix}";
+                }
+                else if (entry.Strategy == "槽壁精加工" && entry.PocketSlotCount > 0 && entry.PocketDepthMm is double wallDepth)
+                {
+                    var l = entry.PocketLengthMm ?? 0;
+                    var w = entry.PocketWidthMm ?? 0;
+                    var suffix = entry.PocketSlotCount > 1 ? $" (×{entry.PocketSlotCount})" : string.Empty;
+                    entry.Name = $"OP{i + 1} · 槽壁精加工 · {l:F0}×{w:F0}×{wallDepth:F0}{suffix}";
+                }
+                else
+                    entry.Name = $"OP{i + 1} · {entry.Strategy}";
+            }
+        }
+
+        private OperationEntry InsertOperation(string strategyName, int index)
+        {
+            var entry = new OperationEntry($"OP{_operations.Count + 1} · {strategyName}", strategyName)
+            {
+                ToolName = DefaultToolName(strategyName),
+            };
+            var op = CreateOperation(strategyName);
+            ApplyDefaultParams(op, strategyName, entry);
+            entry.Attach(op);
+
+            index = Math.Clamp(index, 0, _operations.Count);
+            _operations.Insert(index, entry);
+            return entry;
+        }
+
         /// <summary>刀库：树上的「刀具」分组与工序换刀下拉都从这里来</summary>
         public IReadOnlyList<ToolEntry> Tools => _tools;
 
@@ -195,6 +462,9 @@ namespace AnyCAM.Milling.Engine
         public Stock? Stock { get; private set; }
 
         public TopoShape? Part => _part;
+
+        /// <summary>当前加工顶面说明（自动对齐或用户拾取面后更新）。</summary>
+        public string MachiningTopSummary => _machiningTopSummary;
 
         public IReadOnlyList<OperationEntry> Operations => _operations;
 
@@ -226,11 +496,205 @@ namespace AnyCAM.Milling.Engine
         /// </summary>
         public void LoadPart(TopoShape? shape = null)
         {
-            _part = shape ?? BuildTestPart();
-            _partIsTestPiece = shape == null;
+            if (shape == null)
+            {
+                _part = BuildTestPart();
+                _partIsTestPiece = true;
+            }
+            else
+            {
+                var aligned = AlignPartForCam(shape);
+                // 大件/多面体做 Unify 会在 UI 线程卡数分钟
+                _part = ShouldRunHeavyShapePrep(aligned)
+                    ? PreparePartForDisplay(aligned)
+                    : aligned;
+                _partIsTestPiece = false;
+            }
+
+            InvalidateGeometryCache();
+            WorkZero.ApplyPreset(WorkZeroPreset.BboxMinCorner, _part);
             // 零件换了，填孔实体必须跟着重算
             _waterlineSolid = null;
+            _machiningTopSummary = "顶面（自动 · +Z 最高）";
             RebuildStock();
+        }
+
+        /// <summary>
+        /// 将拾取到的面设为加工顶面：旋转零件使该面外法向对齐世界 +Z，再平移到包围盒最小角为原点。
+        /// </summary>
+        public bool TryApplyMachiningTopFace(TopoShape pickedFace, out string message)
+        {
+            message = string.Empty;
+            if (_part == null)
+            {
+                message = "尚未加载零件";
+                return false;
+            }
+
+            if (pickedFace == null || pickedFace.GetBBox().IsVoid())
+            {
+                message = "未拾取到有效面";
+                return false;
+            }
+
+            if (!PartTopOrientation.TryGetOutwardNormal(pickedFace!, _part, out var normal))
+            {
+                message = "无法计算该面的法向，请换一面或检查模型";
+                return false;
+            }
+
+            try
+            {
+                SessionLog.Info("ApplyMachiningTopFace · 旋转零件");
+                _part = PartTopOrientation.AlignSolidTopNormalToZ(_part, normal);
+                _part = TranslateMinCornerToOrigin(_part);
+                if (ShouldRunHeavyShapePrep(_part))
+                    _part = PreparePartForDisplay(_part);
+
+                InvalidateGeometryCache();
+                _waterlineSolid = null;
+                RebuildStock();
+                WorkZero.ApplyPreset(WorkZeroPreset.BboxMinCorner, _part);
+                _machiningTopSummary = "顶面（已指定） · " + PartTopOrientation.DescribeTopFace(_part);
+                message = _machiningTopSummary;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                SessionLog.Error("ApplyMachiningTopFace 失败", ex);
+                message = "设定顶面失败：" + ex.Message;
+                return false;
+            }
+        }
+
+        public void SetWorkZeroPreset(WorkZeroPreset preset) => WorkZero.ApplyPreset(preset, _part);
+
+        public void SetWorkZeroOrigin(double x, double y, double z) => WorkZero.SetOrigin(x, y, z);
+
+        /// <summary>视口内 MCS 坐标轴长度（mm）。</summary>
+        public float GetMcsAxisLength()
+        {
+            if (_part == null)
+                return 80f;
+
+            var bounds = _part.GetBBox();
+            if (bounds.IsVoid())
+                return 80f;
+
+            var dx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            var dy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            var dz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            return (float)Math.Clamp(Math.Max(dx, Math.Max(dy, dz)) * 0.12, 40.0, 200.0);
+        }
+
+        private void InvalidateGeometryCache()
+        {
+            _geometryCachePart = null;
+            _cachedHoleBottomZ = null;
+            _cachedPocketBottomFaces = null;
+        }
+
+        /// <summary>仅对小件做 Unify；STEP 横梁等超大模型跳过以免卡死。</summary>
+        private static bool ShouldRunHeavyShapePrep(TopoShape part)
+        {
+            var bounds = part.GetBBox();
+            if (bounds.IsVoid())
+                return true;
+
+            var dx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            var dy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            var dz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            if (Math.Max(dx, Math.Max(dy, dz)) > 400.0)
+                return false;
+
+            var faces = part.GetChildren(EnumTopoShapeType.Topo_FACE);
+            return faces == null || faces.Count <= 600;
+        }
+
+        /// <summary>
+        /// 导入对齐：最长包围盒边 → +X，次长 → +Y，最短 → +Z；再平移到最小角为 (0,0,0)。
+        /// </summary>
+        private static TopoShape AlignPartForCam(TopoShape part)
+        {
+            part = OrientBoundingBoxLongestAlongX(part);
+            return TranslateMinCornerToOrigin(part);
+        }
+
+        /// <summary>
+        /// 绕世界轴旋转，使 AABB 满足 长→X、宽→Y、厚→Z（薄板平放、顶面朝 +Z）。
+        /// </summary>
+        private static TopoShape OrientBoundingBoxLongestAlongX(TopoShape part)
+        {
+            for (var step = 0; step < 4; step++)
+            {
+                if (!TryGetBoxExtents(part, out var dx, out var dy, out var dz, out var tol))
+                    return part;
+
+                var xLongest = dx + tol >= dy && dx + tol >= dz;
+                var yAtLeastZ = dy + tol >= dz;
+                if (xLongest && yAtLeastZ)
+                    return part;
+
+                if (!xLongest)
+                {
+                    part = dy >= dz - tol
+                        ? RotatePart(part, 0, 0, 1, -Math.PI / 2)
+                        : RotatePart(part, 0, 1, 0, Math.PI / 2);
+                    continue;
+                }
+
+                part = RotatePart(part, 1, 0, 0, Math.PI / 2);
+            }
+
+            return part;
+        }
+
+        private static bool TryGetBoxExtents(
+            TopoShape part,
+            out double dx,
+            out double dy,
+            out double dz,
+            out double tol)
+        {
+            dx = dy = dz = tol = 0;
+            var bounds = part.GetBBox();
+            if (bounds.IsVoid())
+                return false;
+
+            dx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            dy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            dz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            var scale = Math.Max(dx, Math.Max(dy, dz));
+            if (scale < 1e-9)
+                return false;
+
+            tol = scale * 1e-6;
+            return true;
+        }
+
+        private static TopoShape RotatePart(TopoShape part, double ax, double ay, double az, double angleRad)
+        {
+            var tr = new GTrsf();
+            tr.SetRotation(new GAx1(new GPnt(0, 0, 0), new GDir(ax, ay, az)), angleRad);
+            return TransformTool.Transform(part, tr);
+        }
+
+        private static TopoShape TranslateMinCornerToOrigin(TopoShape part)
+        {
+            var bounds = part.GetBBox();
+            if (bounds.IsVoid())
+                return part;
+
+            var min = bounds.CornerMin();
+            var tr = new GTrsf();
+            tr.SetTranslation(new GVec(-min.X(), -min.Y(), -min.Z()));
+            return TransformTool.Transform(part, tr);
+        }
+
+        private static TopoShape PreparePartForDisplay(TopoShape part)
+        {
+            var unified = BooleanTool.Unify(part, true, true, true);
+            return unified ?? part;
         }
 
         /// <summary>内置示例零件的四角盲孔孔心；钻孔与等高填孔共用这一份数据</summary>
@@ -321,6 +785,19 @@ namespace AnyCAM.Milling.Engine
             Stock = Stock.FromBounds(bounds, sideOffset, topOffset, 0.0);
         }
 
+        /// <summary>更换零件后：按新包围盒重设各工序默认深度并标记待重算。</summary>
+        public void RebindAfterPartChanged()
+        {
+            foreach (var entry in _operations)
+            {
+                if (entry.Operation is not PathOperation op)
+                    continue;
+
+                ApplyDefaultParams(op, entry.Strategy, entry);
+                entry.MarkDirty();
+            }
+        }
+
         // ==================== 工序 ====================
 
         public OperationEntry AddOperation(string strategyName)
@@ -331,7 +808,7 @@ namespace AnyCAM.Milling.Engine
                 ToolName = DefaultToolName(strategyName),
             };
             var op = CreateOperation(strategyName);
-            ApplyDefaultParams(op, strategyName);
+            ApplyDefaultParams(op, strategyName, entry);
             entry.Attach(op);
             _operations.Add(entry);
             return entry;
@@ -365,7 +842,9 @@ namespace AnyCAM.Milling.Engine
         /// 本工序的加工面描述，给属性面板的「加工面」字段。
         /// 各策略吃进引擎的数据不同，这里把差异说清楚。
         /// </summary>
-        public string DescribeGeometry(string strategy)
+        public string DescribeGeometry(string strategy) => DescribeGeometry(null, strategy);
+
+        public string DescribeGeometry(OperationEntry? entry, string strategy)
         {
             if (_part == null)
                 return "未加载零件";
@@ -373,36 +852,63 @@ namespace AnyCAM.Milling.Engine
             return strategy switch
             {
                 // 面铣自筛朝上的加工面并判凸台
-                "面铣" => "顶面（自动识别）",
-                // 挖槽取型腔底面：低于顶面的最高水平面
-                "2D挖槽" => DescribePocketBottom(),
+                "面铣" => _machiningTopSummary,
+                "2D挖槽" => DescribePocketBottom(entry),
                 // 轮廓沿腔底边界走
                 "轮廓" => "槽底轮廓",
-                // 槽壁精加工沿腔壁分层
-                "槽壁精加工" => "槽壁",
-                // 钻孔由圆柱面/圆边识别孔位
+                "槽壁精加工" => DescribePocketBottom(entry),
+                "钻孔" when entry?.DrillDiameterMm is double d && entry.DrillHoleCount > 0
+                    => DescribeDrillGroup(entry, d),
                 "钻孔" => "孔位（圆柱面自动识别）",
                 _ => "整体",
             };
         }
 
-        private string DescribePocketBottom()
+        private string DescribePocketBottom(OperationEntry? entry)
         {
-            var bounds = _part!.GetBBox();
-            if (bounds.IsVoid())
-                return "整体";
+            if (_part == null)
+                return "未加载零件";
 
-            var face = PickBaseShape(new Pocket2D(), _part);
-            if (ReferenceEquals(face, _part))
-                return "整体";
+            if (entry?.PocketSlotCount > 0
+                && entry.PocketLengthMm is double l
+                && entry.PocketWidthMm is double w
+                && entry.PocketDepthMm is double d)
+            {
+                var area = entry.PocketAreaMm2 ?? l * w;
+                var group = _pocketGroups.FirstOrDefault(g =>
+                    Math.Abs(g.DepthMm - d) < 0.6
+                    && Math.Abs(g.AreaMm2 - area) < 50);
+                if (group != null)
+                    return PocketSlotRecognizer.FormatGroupGeometry(group, _pocketBottomSkippedCount);
 
-            var faceBounds = face.GetBBox();
-            var w = faceBounds.CornerMax().X() - faceBounds.CornerMin().X();
-            var h = faceBounds.CornerMax().Y() - faceBounds.CornerMin().Y();
-            return $"槽底面 ×1（{w:F0} × {h:F0} @ Z{faceBounds.CornerMax().Z():F0}）";
+                var count = entry.PocketSlotCount;
+                var multi = count > 1 ? $" · 同规格 {count} 处" : string.Empty;
+                return $"L{l:F0} × W{w:F0} × 深{d:F0} mm · 面积 {area:F0} mm²{multi}";
+            }
+
+            var faces = GetPocketBottomFaces(_part);
+            if (faces.Count == 0)
+                return "未识别到槽底（可重新导入或指定顶面）";
+
+            var skip = _pocketBottomSkippedCount > 0
+                ? $" · 已跳过背面/底面槽×{_pocketBottomSkippedCount}"
+                : string.Empty;
+            return $"全部识别槽 ×{faces.Count}（未分组 · 请执行槽分析重建工序）{skip}";
         }
 
+        private string DescribeDrillGroup(OperationEntry entry, double diameterMm)
+        {
+            var group = _holeGroups.FirstOrDefault(g => Math.Abs(g.DiameterMm - diameterMm) < 0.08);
+            var title = group?.DrillTitle ?? $"φ{diameterMm:F0}";
+            var kind = group?.KindSummary;
+            var skipped = group?.BottomAccessCount ?? 0;
+            var skipNote = skipped > 0 ? $" · 已跳过底面孔×{skipped}" : string.Empty;
 
+            if (string.IsNullOrWhiteSpace(kind))
+                return $"{title} · {entry.DrillHoleCount} 孔（顶面入刀）{skipNote}";
+
+            return $"{title} · {entry.DrillHoleCount} 孔 · {kind}{skipNote}";
+        }
 
         /// <summary>
         /// 策略名到工序实例的映射，覆盖粗加工、精加工、孔加工三族。
@@ -424,9 +930,9 @@ namespace AnyCAM.Milling.Engine
         /// 槽壁精修到槽底，钻孔到孔底。区域清除必须给 <see cref="EnumAreaPocketMode"/>（ZigZag），
         /// 否则区域只走一圈边界、顶面和槽内的料都下不去。
         /// </remarks>
-        private void ApplyDefaultParams(PathOperation op, string strategyName)
+        private void ApplyDefaultParams(PathOperation op, string strategyName, OperationEntry? entry = null)
         {
-            var (startDepth, finalDepth) = RecommendDepths(op, strategyName);
+            var (startDepth, finalDepth) = RecommendDepths(op, strategyName, entry);
 
             var depths = op.GetDepthParamsRef();
             depths.SetStartDepth(startDepth);
@@ -479,7 +985,7 @@ namespace AnyCAM.Milling.Engine
         /// <summary>
         /// 按策略推荐起止深度。返回 (起始深度, 最终深度)。
         /// </summary>
-        private (double Start, double Final) RecommendDepths(PathOperation op, string strategyName)
+        private (double Start, double Final) RecommendDepths(PathOperation op, string strategyName, OperationEntry? entry = null)
         {
             var stockTop = RecommendedTopDepth();                       // 毛坯顶（零件顶 + 余量）
             var partTop = stockTop;
@@ -502,15 +1008,24 @@ namespace AnyCAM.Milling.Engine
                     return (stockTop, partTop);
 
                 case "2D挖槽":
-                    // 到型腔底：挖槽的基准面就是 PickBaseShape 选出的腔底
                     if (op is Pocket2D && _part != null)
                     {
-                        var bottom = PickBaseShape(op, _part);
-                        if (!ReferenceEquals(bottom, _part))
+                        var floors = entry != null
+                            ? GetPocketFacesForEntry(entry)
+                            : GetPocketBottomFaces(_part);
+                        if (floors.Count > 0)
                         {
-                            var bottomBounds = bottom.GetBBox();
-                            if (!bottomBounds.IsVoid())
-                                return (partTop, bottomBounds.CornerMax().Z());
+                            var floorZ = double.PositiveInfinity;
+                            foreach (var bottom in floors)
+                            {
+                                var bottomBounds = bottom.GetBBox();
+                                if (bottomBounds.IsVoid())
+                                    continue;
+                                floorZ = Math.Min(floorZ, bottomBounds.CornerMax().Z());
+                            }
+
+                            if (floorZ < double.PositiveInfinity)
+                                return (partTop, floorZ);
                         }
                     }
                     return (partTop, partTop - 2.0);
@@ -520,20 +1035,28 @@ namespace AnyCAM.Milling.Engine
                     return (stockTop, partBottom);
 
                 case "槽壁精加工":
-                {
-                    // 只修槽壁：顶从零件顶起，底到槽底（与挖槽同一块基准面）
-                    if (_part != null)
+                    if (op is WaterlineOperation && _part != null)
                     {
-                        var bottom = PickBaseShape(new Pocket2D(), _part);
-                        if (!ReferenceEquals(bottom, _part))
+                        var floors = entry != null
+                            ? GetPocketFacesForEntry(entry)
+                            : GetPocketBottomFaces(_part);
+                        if (floors.Count > 0)
                         {
-                            var bottomBounds = bottom.GetBBox();
-                            if (!bottomBounds.IsVoid())
-                                return (partTop, bottomBounds.CornerMax().Z());
+                            var floorZ = double.PositiveInfinity;
+                            foreach (var bottom in floors)
+                            {
+                                var bottomBounds = bottom.GetBBox();
+                                if (bottomBounds.IsVoid())
+                                    continue;
+                                floorZ = Math.Min(floorZ, bottomBounds.CornerMax().Z());
+                            }
+
+                            if (floorZ < double.PositiveInfinity)
+                                return (partTop, floorZ);
                         }
                     }
+
                     return (partTop, partTop - TestSlotDepth);
-                }
 
                 case "钻孔":
                     // 到最浅的孔底：孔底是零件上面积很小的水平面
@@ -554,12 +1077,28 @@ namespace AnyCAM.Milling.Engine
             if (_part == null)
                 return partTop - 20.0;
 
-            var bounds = _part.GetBBox();
+            if (!ReferenceEquals(_part, _geometryCachePart))
+            {
+                _geometryCachePart = _part;
+                _cachedHoleBottomZ = null;
+                _cachedPocketBottomFaces = null;
+            }
+
+            if (_cachedHoleBottomZ != null)
+                return _cachedHoleBottomZ.Value;
+
+            _cachedHoleBottomZ = ComputeHoleBottomZ(_part, partTop);
+            return _cachedHoleBottomZ.Value;
+        }
+
+        private static double ComputeHoleBottomZ(TopoShape part, double partTop)
+        {
+            var bounds = part.GetBBox();
             if (bounds.IsVoid())
                 return partTop - 20.0;
 
             var tolerance = Math.Max((bounds.CornerMax().Z() - bounds.CornerMin().Z()) * 0.01, 1e-3);
-            var faces = _part.GetChildren(EnumTopoShapeType.Topo_FACE);
+            var faces = part.GetChildren(EnumTopoShapeType.Topo_FACE);
             if (faces == null)
                 return partTop - 20.0;
 
@@ -573,7 +1112,6 @@ namespace AnyCAM.Milling.Engine
                 if (faceBounds.IsVoid())
                     continue;
 
-                // 水平面、低于零件顶
                 if (faceBounds.CornerMax().Z() - faceBounds.CornerMin().Z() > tolerance)
                     continue;
 
@@ -581,7 +1119,6 @@ namespace AnyCAM.Milling.Engine
                 if (z >= partTop - tolerance)
                     continue;
 
-                // 孔底尺寸小：XY 跨度远小于腔底
                 var w = faceBounds.CornerMax().X() - faceBounds.CornerMin().X();
                 var h = faceBounds.CornerMax().Y() - faceBounds.CornerMin().Y();
                 if (Math.Max(w, h) > 20.0)
@@ -614,15 +1151,25 @@ namespace AnyCAM.Milling.Engine
                 return false;
             }
 
+            if (!TryValidateCompute(entry, out message))
+            {
+                SessionLog.Warn(message);
+                entry.MarkFailed(message);
+                return false;
+            }
+
             try
             {
+                SessionLog.SetAction($"{entry.Name} · {entry.Strategy} · PrepareOperation");
                 PrepareOperation(op, entry);
 
                 // 用本工序配的刀：重算进给并写入工序，各刀的进给互不干扰
                 GetTool(entry.ToolName).Controller.ApplyToUpdated(op);
 
+                SessionLog.SetAction($"{entry.Name} · {entry.Strategy} · Execute");
                 if (!op.Execute())
                 {
+                    SessionLog.Warn($"{entry.Name} Execute 返回 false");
                     entry.MarkFailed("刀路计算失败");
                     message = $"{entry.Name}：刀路计算失败";
                     return false;
@@ -637,11 +1184,13 @@ namespace AnyCAM.Milling.Engine
 
                 entry.MarkComputed(toolpath, seconds);
                 message = $"{entry.Name}：{entry.CommandCount} 条指令 / {entry.PathLength:F1} mm / {FormatDuration(seconds)}";
+                SessionLog.Info(message);
+                SessionLog.ClearAction();
                 return true;
             }
             catch (Exception ex)
             {
-                // 引擎抛异常不能让界面崩，转成徽标上的失败态
+                SessionLog.Error($"{entry.Name} Compute 异常", ex);
                 entry.MarkFailed(ex.Message);
                 message = $"{entry.Name}：{ex.Message}";
                 return false;
@@ -656,7 +1205,7 @@ namespace AnyCAM.Milling.Engine
             if (op is AreaBasedOperation area)
             {
                 if (_part != null)
-                    area.SetBaseGeometryList(CollectBaseShapes(op, _part));
+                    area.SetBaseGeometryList(CollectBaseShapes(op, _part, entry));
 
                 area.SetToolRadius(tool.GetDiameter() / 2.0);
             }
@@ -675,28 +1224,65 @@ namespace AnyCAM.Milling.Engine
             if (op is WaterlineOperation waterline && _part != null)
             {
                 // 水线工序吃的是 AddSolid 的实体列表，不走 BaseGeometryList。
-                // 槽壁精修只修槽壁：喂「腔体体积」这块独立实体，截面就只剩槽环，
-                // Side=Inside 让刀心收进腔内贴壁（外形侧壁归「轮廓」管，不再重复）。
-                if (entry.Strategy == "槽壁精加工" && _partIsTestPiece)
+                // 与 2D 挖槽同一组槽底：按 footprint 拉伸的腔体，Inside 只精修槽壁。
+                var partTop = _part.GetBBox().CornerMax().Z();
+                var pocketFloors = entry.Strategy == "槽壁精加工"
+                    ? GetPocketFacesForEntry(entry)
+                    : Array.Empty<TopoShape>();
+
+                var addedPocketSolid = false;
+                foreach (var bottom in pocketFloors)
                 {
-                    waterline.AddSolid(BuildSlotSolid());
+                    if (CreatePocketRegionHighlightBlock(bottom, partTop) is not { } block)
+                        continue;
+
+                    waterline.AddSolid(block);
+                    addedPocketSolid = true;
+                }
+
+                if (!addedPocketSolid)
+                {
+                    if (_partIsTestPiece)
+                    {
+                        waterline.AddSolid(BuildSlotSolid());
+                        addedPocketSolid = true;
+                    }
+                    else
+                    {
+                        var solid = GetWaterlineSolid();
+                        if (solid != null)
+                            waterline.AddSolid(solid);
+                    }
+                }
+
+                if (addedPocketSolid || pocketFloors.Count > 0)
                     waterline.SetSide(EnumProfileSide.Inside);
-                }
-                else
-                {
-                    // 外部模型没有腔体信息：退回整件（孔已填实），外形+腔壁一起修
-                    var solid = GetWaterlineSolid();
-                    if (solid != null)
-                        waterline.AddSolid(solid);
-                }
+
                 waterline.SetIgnoreOuterAbove(false);
             }
 
             if (op is HoleOperation hole && _part != null)
             {
-                // 整件交给孔位识别：圆柱面/圆边都会被收成孔位（含同位去重）
                 hole.ClearHoles();
-                hole.AddShape(_part);
+
+                if (entry.DrillDiameterMm is double targetDiam)
+                {
+                    var group = _holeGroups.FirstOrDefault(g =>
+                        Math.Abs(g.DiameterMm - targetDiam) < 0.08);
+                    if (group != null)
+                    {
+                        foreach (var h in group.Holes)
+                        {
+                            if (!HoleRecognizer.IsMachinableFromTop(h))
+                                continue;
+                            hole.AddHole(h.CenterX, h.CenterY, h.DiameterMm);
+                        }
+                    }
+                    else
+                        hole.AddShape(_part);
+                }
+                else
+                    hole.AddShape(_part);
             }
         }
 
@@ -711,7 +1297,7 @@ namespace AnyCAM.Milling.Engine
         /// 往复走刀缩在那一个面的范围里（表现为只清掉槽底、顶面余量没动）。
         /// </para>
         /// </summary>
-        private static TopoShapeList CollectBaseShapes(PathOperation op, TopoShape part)
+        private TopoShapeList CollectBaseShapes(PathOperation op, TopoShape part, OperationEntry? entry = null)
         {
             var list = new TopoShapeList();
 
@@ -723,126 +1309,64 @@ namespace AnyCAM.Milling.Engine
 
             if (op is Pocket2D)
             {
-                list.Add(PickBaseShape(op, part));
+                var faces = entry != null ? GetPocketFacesForEntry(entry) : GetPocketBottomFaces(part);
+                foreach (var face in faces)
+                    list.Add(face);
+                if (list.Count == 0)
+                    list.Add(part);
                 return list;
             }
 
-            // 面铣：只取「最高的一层水平面」作为加工面。
-            // 不能把全部水平面都喂进去：面铣用 MakeCompound(面表) 的包围盒当加工区域，
-            // 同时用最低面的 Z 当「加工面高度」判凸台；混入底面（Z0）和孔底（Z20）后，
-            // 加工面基准被拉到最低处，区域还会被这些面上的孔洞切成槽底环，
-            // 结果是往复盘只铺在槽内、顶面余量没动。
-            var faces = part.GetChildren(EnumTopoShapeType.Topo_FACE);
-            if (faces == null || faces.Count == 0)
-            {
-                list.Add(part);
-                return list;
-            }
-
-            var bounds = part.GetBBox();
-            var tolerance = bounds.IsVoid()
-                ? 1e-3
-                : Math.Max((bounds.CornerMax().Z() - bounds.CornerMin().Z()) * 0.01, 1e-3);
-            var topZ = bounds.IsVoid() ? 0.0 : bounds.CornerMax().Z();
-
-            foreach (var face in faces)
-            {
-                if (face == null)
-                    continue;
-
-                var faceBounds = face.GetBBox();
-                if (faceBounds.IsVoid())
-                    continue;
-
-                // 水平面判定：Z 跨度近似 0
-                if (faceBounds.CornerMax().Z() - faceBounds.CornerMin().Z() > tolerance)
-                    continue;
-
-                // 只认最高一层（零件顶面）；槽底、底面、孔底都不算
-                if (topZ - faceBounds.CornerMax().Z() > tolerance)
-                    continue;
-
-                list.Add(face);
-            }
-
-            if (list.Count == 0)
-                list.Add(part);
-
+            AddTopMachiningFaces(list, part);
             return list;
         }
 
-        /// <summary>挖槽的加工基准：型腔底面（见方法内注释）</summary>
-        private static TopoShape PickBaseShape(PathOperation op, TopoShape part)
+        /// <summary>挖槽单面基准（多槽时返回面积最大的一块，供旧路径兼容）</summary>
+        private TopoShape PickBaseShape(PathOperation op, TopoShape part)
         {
             if (op is not Pocket2D)
                 return part;
 
-            var bounds = part.GetBBox();
-            if (bounds.IsVoid())
-                return part;
+            var faces = GetPocketBottomFaces(part);
+            return faces.Count > 0 ? faces[0] : part;
+        }
 
-            var faces = part.GetChildren(EnumTopoShapeType.Topo_FACE);
-            if (faces == null || faces.Count == 0)
-                return part;
-
-            // 挖槽要型腔底面：取「低于零件顶面的最高水平面」，
-            // 顶面自身不是腔底（示例零件顶面是开口的方槽上沿）。
-            // 水平面用 Z 跨度判定，平面足够时等于 0，网格面留 1% 余量。
-            //
-            // 同一高度上可能有多个候选（示例零件的四个盲孔孔底与槽底同高），
-            // 只比高度先到先得会选到 φ10 的孔底，刀路因此缩成一个小圈。
-            // 型腔底一定是同高度里面积最大的那块，所以同高度时改比包围盒面积。
-            var tolerance = Math.Max((bounds.CornerMax().Z() - bounds.CornerMin().Z()) * 0.01, 1e-3);
-            var topZ = bounds.CornerMax().Z();
-            TopoShape? best = null;
-            var bestZ = double.NegativeInfinity;
-            var bestArea = 0.0;
-
-            foreach (var face in faces)
+        private IReadOnlyList<TopoShape> GetPocketBottomFaces(TopoShape part)
+        {
+            if (!ReferenceEquals(part, _geometryCachePart))
             {
-                if (face == null)
-                    continue;
-
-                var faceBounds = face.GetBBox();
-                if (faceBounds.IsVoid())
-                    continue;
-
-                if (faceBounds.CornerMax().Z() - faceBounds.CornerMin().Z() > tolerance)
-                    continue;
-
-                var z = faceBounds.CornerMax().Z();
-                if (z >= topZ - tolerance)
-                    continue;   // 顶面跳过
-
-                // 高于当前最优就换，同高时只认面积更大的
-                if (z < bestZ - tolerance)
-                    continue;
-
-                var area = (faceBounds.CornerMax().X() - faceBounds.CornerMin().X())
-                         * (faceBounds.CornerMax().Y() - faceBounds.CornerMin().Y());
-
-                if (z > bestZ + tolerance || area > bestArea)
-                {
-                    best = face;
-                    bestZ = z;
-                    bestArea = area;
-                }
+                _geometryCachePart = part;
+                _cachedHoleBottomZ = null;
+                _cachedPocketBottomFaces = null;
             }
 
-            return best ?? part;
+            if (_cachedPocketBottomFaces != null)
+                return _cachedPocketBottomFaces;
+
+            _cachedPocketBottomFaces = ComputePocketBottomFaces(part);
+            return _cachedPocketBottomFaces;
+        }
+
+        private static List<TopoShape> ComputePocketBottomFaces(TopoShape part) =>
+            PocketSlotRecognizer.RecognizeMachinableFromTop(part).Select(s => s.BottomFace).ToList();
+
+        private IReadOnlyList<TopoShape> GetPocketFacesForEntry(OperationEntry entry)
+        {
+            if (entry.PocketBottomFaces is { Count: > 0 })
+                return entry.PocketBottomFaces;
+
+            return _part == null ? Array.Empty<TopoShape>() : GetPocketBottomFaces(_part);
         }
 
         /// <summary>批量计算待算工序；单条失败不中断，全部算完后汇总失败信息</summary>
         public bool ComputeAll(out string message)
         {
+            SessionLog.Info($"ComputeAll 开始 · 工序数 {_operations.Count}");
             var sb = new StringBuilder();
             var ok = true;
 
             foreach (var entry in _operations)
             {
-                if (entry.State == OperationState.Computed)
-                    continue;
-
                 if (!Compute(entry, out var msg))
                 {
                     // 继续算后面的工序：前面一条失败就停会让后面的刀路完全不出，
@@ -934,18 +1458,24 @@ namespace AnyCAM.Milling.Engine
             var machine = MillingMachineModel.MakeThreeAxis();
             var ctx = ToolController.BuildPostContext(op.GetDepthParams(), machine, programName);
             ctx.Units = PostUnits;
-            return post.Process(toolpath, ctx);
+            ctx.Comments.Add($"MCS ZERO (part): X{WorkZero.OriginX:F3} Y{WorkZero.OriginY:F3} Z{WorkZero.OriginZ:F3}");
+            var text = post.Process(toolpath, ctx);
+            return GcodeWorkZeroTransform.Apply(text, WorkZero);
         }
 
         // ==================== 视口显示 ====================
 
         /// <summary>把零件显示到视口</summary>
-        public BrepSceneNode? ShowPart(IRenderView view)
+        public BrepSceneNode? ShowPart(IRenderView view, bool pickable = false)
         {
             if (_part == null)
                 return null;
 
-            return ShowShapeInScene(view, _part, PartColor);
+            var node = ShowShapeInScene(view, _part, PartColor);
+            if (node != null)
+                node.SetPickable(pickable);
+
+            return node;
         }
 
         /// <summary>
@@ -1000,6 +1530,412 @@ namespace AnyCAM.Milling.Engine
             return group;
         }
 
+        /// <summary>选中工序时，在零件上叠加与策略同色的加工区域高亮。</summary>
+        public GroupSceneNode BuildStrategyHighlight(OperationEntry entry)
+        {
+            var group = new GroupSceneNode();
+            if (_part == null)
+                return group;
+
+            try
+            {
+                var color = GetPathColor(entry.Strategy);
+                foreach (var shape in EnumerateStrategyHighlightShapes(entry))
+                {
+                    var node = CreateHighlightNode(shape, color, entry.Strategy);
+                    if (node != null)
+                        group.AddNode(node);
+                }
+            }
+            catch (Exception)
+            {
+                // 高亮失败不应拖垮进程（大件二次网格化可能触发 native OOM）
+            }
+
+            return group;
+        }
+
+        /// <summary>刀路计算前校验，避免导入大件在错误基准上触发 Area 内核崩溃。</summary>
+        public bool TryValidateCompute(OperationEntry entry, out string message)
+        {
+            message = string.Empty;
+            if (_part == null)
+            {
+                message = "尚未加载零件";
+                return false;
+            }
+
+            if (entry.Strategy is "2D挖槽" or "槽壁精加工")
+            {
+                var floors = GetPocketFacesForEntry(entry);
+                if (floors.Count == 0)
+                {
+                    message =
+                        $"{entry.Name}：未识别到型腔底面，挖槽/槽壁已跳过（强行计算可能导致程序退出）。";
+                    return false;
+                }
+
+                foreach (var bottom in floors)
+                {
+                    if (!_partIsTestPiece && !IsPocketSafeForImportedPart(bottom, out var pocketReason))
+                    {
+                        message = $"{entry.Name}：{pocketReason}";
+                        return false;
+                    }
+                }
+            }
+
+            if (entry.Strategy == "钻孔" && entry.DrillDiameterMm is double drillDiam)
+            {
+                var group = _holeGroups.FirstOrDefault(g => Math.Abs(g.DiameterMm - drillDiam) < 0.08);
+                if (group != null && group.MachinableFromTopCount == 0 && group.Holes.Count > 0)
+                {
+                    message =
+                        $"{entry.Name}：该孔径均为底面入刀盲孔（需翻面后另建工序），顶面装夹下已跳过。";
+                    return false;
+                }
+            }
+
+            if (entry.Strategy == "轮廓" && !_partIsTestPiece && IsLargePart())
+            {
+                message = $"{entry.Name}：导入大件暂不支持轮廓贯通，请跳过以免内核异常。";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>导入 STEP 时限制型腔尺寸/深度，避免 Area 内核在 makeSection 中崩溃。</summary>
+        private bool IsPocketSafeForImportedPart(TopoShape bottom, out string reason)
+        {
+            reason = string.Empty;
+            var faceBounds = bottom.GetBBox();
+            if (faceBounds.IsVoid())
+            {
+                reason = "腔底无效";
+                return false;
+            }
+
+            if (_part == null)
+                return true;
+
+            var partBounds = _part.GetBBox();
+            if (partBounds.IsVoid())
+                return true;
+
+            var area = HorizontalAreaMm2(faceBounds.CornerMax(), faceBounds.CornerMin());
+            var topFootprint = HorizontalAreaMm2(partBounds.CornerMax(), partBounds.CornerMin());
+            var topZ = partBounds.CornerMax().Z();
+            var floorZ = faceBounds.CornerMax().Z();
+            var depth = topZ - floorZ;
+
+            // 明显小于顶面 footprint 的型腔底：允许较大面积（真实开腔）
+            if (depth >= 0.5 && depth <= 120 && area < topFootprint * 0.92)
+                return true;
+
+            if (area > 80_000)
+            {
+                reason = $"腔底面积 {area:F0} mm² 接近整件顶面，易触发内核崩溃";
+                return false;
+            }
+
+            if (depth > 80 && area > topFootprint * 0.75)
+            {
+                reason = $"腔过深 ({depth:F0} mm) 且接近整件平面，已跳过";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static double HorizontalAreaMm2(GPnt cornerMax, GPnt cornerMin)
+        {
+            var dx = cornerMax.X() - cornerMin.X();
+            var dy = cornerMax.Y() - cornerMin.Y();
+            return Math.Max(dx, 0) * Math.Max(dy, 0);
+        }
+
+        private bool IsLargePart()
+        {
+            if (_part == null)
+                return false;
+
+            var bounds = _part.GetBBox();
+            if (bounds.IsVoid())
+                return false;
+
+            var dx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            var dy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            var dz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            return Math.Max(dx, Math.Max(dy, dz)) > 400.0;
+        }
+
+        private IEnumerable<TopoShape> EnumerateStrategyHighlightShapes(OperationEntry entry)
+        {
+            if (_part == null)
+                yield break;
+
+            switch (entry.Strategy)
+            {
+                case "面铣":
+                {
+                    var n = 0;
+                    foreach (var face in EnumerateTopMachiningFaces(_part))
+                    {
+                        if (++n > 48)
+                            break;
+
+                        if (CreateTopFaceHighlightSlab(face) is { } slab)
+                            yield return slab;
+                        else
+                            yield return face;
+                    }
+
+                    yield break;
+                }
+
+                case "2D挖槽":
+                {
+                    var partTop = _part.GetBBox().CornerMax().Z();
+                    var n = 0;
+                    foreach (var bottom in GetPocketFacesForEntry(entry))
+                    {
+                        if (++n > 24)
+                            break;
+
+                        if (CreatePocketRegionHighlightBlock(bottom, partTop) is { } block)
+                            yield return block;
+                        else
+                            yield return bottom;
+                    }
+
+                    if (n == 0 && IsLargePart() && CreatePartBoundsBox(_part) is { } box)
+                        yield return box;
+                    yield break;
+                }
+
+                case "槽壁精加工":
+                {
+                    var partTop = _part.GetBBox().CornerMax().Z();
+                    var n = 0;
+                    foreach (var bottom in GetPocketFacesForEntry(entry))
+                    {
+                        if (++n > 24)
+                            break;
+
+                        if (CreatePocketRegionHighlightBlock(bottom, partTop) is { } block)
+                            yield return block;
+                        else
+                            yield return bottom;
+                    }
+
+                    if (n == 0 && IsLargePart() && CreatePartBoundsBox(_part) is { } box)
+                        yield return box;
+                    yield break;
+                }
+
+                case "轮廓":
+                    if (CreatePartBoundsBox(_part) is { } boundsShape)
+                        yield return boundsShape;
+                    yield break;
+
+                case "钻孔":
+                {
+                    var n = 0;
+                    foreach (var marker in EnumerateDrillHighlightSolids(entry))
+                    {
+                        if (++n > 80)
+                            break;
+                        yield return marker;
+                    }
+
+                    yield break;
+                }
+            }
+        }
+
+        private static TopoShape? CreatePartBoundsBox(TopoShape part)
+        {
+            var bounds = part.GetBBox();
+            if (bounds.IsVoid())
+                return null;
+
+            var min = bounds.CornerMin();
+            var max = bounds.CornerMax();
+            var dx = Math.Max(max.X() - min.X(), 1e-3);
+            var dy = Math.Max(max.Y() - min.Y(), 1e-3);
+            var dz = Math.Max(max.Z() - min.Z(), 1e-3);
+            return ShapeBuilder.MakeBox(
+                new GAx2(new GPnt(min.X(), min.Y(), min.Z()), new GDir(0, 0, 1)),
+                dx, dy, dz);
+        }
+
+        /// <summary>挖槽选中高亮：按槽底 footprint 做一根半透明柱体（槽底 → 顶面）。</summary>
+        private static TopoShape? CreatePocketRegionHighlightBlock(TopoShape bottom, double partTopZ)
+        {
+            var bounds = bottom.GetBBox();
+            if (bounds.IsVoid())
+                return null;
+
+            var min = bounds.CornerMin();
+            var max = bounds.CornerMax();
+            var floorZ = max.Z();
+            var dx = Math.Max(max.X() - min.X(), 0.8);
+            var dy = Math.Max(max.Y() - min.Y(), 0.8);
+            var height = Math.Max(partTopZ - floorZ, 0.5);
+            return ShapeBuilder.MakeBox(
+                new GAx2(new GPnt(min.X(), min.Y(), floorZ), new GDir(0, 0, 1)),
+                dx,
+                dy,
+                height);
+        }
+
+        /// <summary>面铣选中高亮：顶面上一块薄色板。</summary>
+        private static TopoShape? CreateTopFaceHighlightSlab(TopoShape face)
+        {
+            var bounds = face.GetBBox();
+            if (bounds.IsVoid())
+                return null;
+
+            var min = bounds.CornerMin();
+            var max = bounds.CornerMax();
+            var dx = Math.Max(max.X() - min.X(), 0.8);
+            var dy = Math.Max(max.Y() - min.Y(), 0.8);
+            const double thickness = 1.2;
+            var zBase = max.Z() - thickness;
+            return ShapeBuilder.MakeBox(
+                new GAx2(new GPnt(min.X(), min.Y(), zBase), new GDir(0, 0, 1)),
+                dx,
+                dy,
+                thickness);
+        }
+
+        private IEnumerable<TopoShape> EnumerateTopMachiningFaces(TopoShape part)
+        {
+            var list = new TopoShapeList();
+            AddTopMachiningFaces(list, part);
+            for (var i = 0; i < list.Count; i++)
+                yield return list[i];
+        }
+
+        private static void AddTopMachiningFaces(TopoShapeList list, TopoShape part)
+        {
+            var faces = part.GetChildren(EnumTopoShapeType.Topo_FACE);
+            if (faces == null || faces.Count == 0)
+            {
+                list.Add(part);
+                return;
+            }
+
+            var bounds = part.GetBBox();
+            var tolerance = bounds.IsVoid()
+                ? 1e-3
+                : Math.Max((bounds.CornerMax().Z() - bounds.CornerMin().Z()) * 0.01, 1e-3);
+            var topZ = bounds.IsVoid() ? 0.0 : bounds.CornerMax().Z();
+
+            foreach (var face in faces)
+            {
+                if (face == null)
+                    continue;
+
+                var faceBounds = face.GetBBox();
+                if (faceBounds.IsVoid())
+                    continue;
+
+                if (faceBounds.CornerMax().Z() - faceBounds.CornerMin().Z() > tolerance)
+                    continue;
+
+                if (topZ - faceBounds.CornerMax().Z() > tolerance)
+                    continue;
+
+                list.Add(face);
+            }
+
+            if (list.Count == 0)
+                list.Add(part);
+        }
+
+        private IEnumerable<TopoShape> EnumerateDrillHighlightSolids(OperationEntry entry)
+        {
+            if (_part == null || entry.DrillDiameterMm is not double targetDiam)
+                yield break;
+
+            var group = _holeGroups.FirstOrDefault(g => Math.Abs(g.DiameterMm - targetDiam) < 0.08);
+            if (group == null || group.Holes.Count == 0)
+                yield break;
+
+            var bounds = _part.GetBBox();
+            if (bounds.IsVoid())
+                yield break;
+
+            foreach (var hole in group.Holes)
+            {
+                if (!HoleRecognizer.IsMachinableFromTop(hole))
+                    continue;
+
+                var radius = hole.DiameterMm * 0.5;
+                if (radius <= 0)
+                    continue;
+
+                var depth = Math.Max(hole.DepthMm, 1.0);
+                var floorZ = hole.FloorZ;
+                yield return ShapeBuilder.MakeCylinder(
+                    new GAx2(new GPnt(hole.CenterX, hole.CenterY, floorZ), new GDir(0, 0, 1)),
+                    radius,
+                    depth,
+                    0);
+            }
+        }
+
+        private static BrepSceneNode? CreateHighlightNode(TopoShape shape, Vector3 color, string strategy)
+        {
+            if (shape == null)
+                return null;
+
+            BrepSceneNode? node = null;
+            if (strategy is "2D挖槽" or "面铣" or "钻孔" or "槽壁精加工")
+                node = CreateFilledHighlightNode(shape, color, strategy);
+            else
+                node = BrepSceneNode.Create(shape, color, true) ?? ShowShape(shape, color);
+
+            if (node == null)
+                return null;
+
+            node.SetPickable(false);
+            if (strategy is "轮廓")
+                node.SetDisplayFilter(EnumShapeFilter.Edge);
+
+            return node;
+        }
+
+        /// <summary>半透明面填充 + 同色描边，选中工序时在零件上叠色块。</summary>
+        private static BrepSceneNode? CreateFilledHighlightNode(TopoShape shape, Vector3 color, string strategy)
+        {
+            var deflection = ComputeMeshDeflection(shape);
+            try
+            {
+                var faceMaterial = MeshStandardMaterial.Create($"anycam.highlight.{strategy}");
+                faceMaterial.SetColor(color);
+                faceMaterial.SetOpacity(0.42f);
+                faceMaterial.SetTransparent(true);
+                faceMaterial.SetFaceSide(EnumFaceSide.DoubleSide);
+
+                var edgeMaterial = BasicMaterial.Create($"anycam.highlight.edge.{strategy}");
+                edgeMaterial.SetColor(color);
+                edgeMaterial.SetLineWidth(2);
+
+                var node = BrepSceneNode.Create(shape, faceMaterial, edgeMaterial, deflection, true);
+                if (node != null)
+                    return node;
+            }
+            catch (Exception)
+            {
+                // 材质不可用时退回纯色面
+            }
+
+            return BrepSceneNode.Create(shape, color, true) ?? ShowShape(shape, color);
+        }
+
         /// <summary>
         /// 加工阶段到刀路颜色的映射。
         /// 粗加工（大面积去除）用暖色系提示「材料还在大量去除」，
@@ -1041,14 +1977,48 @@ namespace AnyCAM.Milling.Engine
             if (shape == null)
                 return null;
 
-            return BrepSceneNode.Create(shape, color, true);
+            var deflection = ComputeMeshDeflection(shape);
+
+            // 与 AnyCAD.WPF.App MainViewModel.OnOpenModel 相同优先路径
+            var node = BrepSceneNode.Create(shape, null, null, deflection, false);
+            if (node != null)
+                return node;
+
+            node = BrepSceneNode.Create(shape, color, true);
+            if (node != null)
+                return node;
+
+            return BrepSceneNode.Create(shape, deflection, false)
+                   ?? BrepSceneNode.Create(shape);
+        }
+
+        private static double ComputeMeshDeflection(TopoShape shape)
+        {
+            var bounds = shape.GetBBox();
+            if (bounds.IsVoid())
+                return 0.5;
+
+            var dx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            var dy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            var dz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            var max = Math.Max(dx, Math.Max(dy, dz));
+            // 超大件用更粗网格，避免三角化占满内存/GPU
+            if (max > 800.0)
+                return Math.Clamp(max / 45.0, 2.0, 200.0);
+
+            return Math.Clamp(max / 120.0, 0.05, 80.0);
         }
 
         /// <summary>造显示节点并入场景，用于零件/毛坯这类不会被整体清掉的顶层对象</summary>
         private static BrepSceneNode? ShowShapeInScene(IRenderView view, TopoShape shape, Vector3 color)
         {
             var node = ShowShape(shape, color);
-            if (node != null)
+            if (node == null)
+                return null;
+
+            if (view is AnyCAD.WPF.RenderControl wpfRender)
+                wpfRender.ShowSceneNode(node);
+            else
                 view.Scene.AddNode(node);
 
             return node;

@@ -1,9 +1,13 @@
-﻿using AnyCAM.Milling.Engine;
+using AnyCAD.Foundation;
+using AnyCAM.Milling.Engine;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using System;
 using System.Collections.ObjectModel;
+using System.Windows.Input;
 using System.Windows.Threading;
+using IOPath = System.IO.Path;
 
 namespace AnyCAM.Milling.ViewModels
 {
@@ -26,6 +30,12 @@ namespace AnyCAM.Milling.ViewModels
         void ShowCoordinateGrid(bool visible);
         //! 视口底色。三维场景由引擎自己清屏，不跟随 WPF 的 Background
         void SetBackgroundColor(Vector4 color);
+        /// <summary>导入/重载后延迟缩放到合适视图（等布局尺寸稳定）</summary>
+        void FitViewDeferred();
+        /// <summary>开启/关闭视口面拾取（选加工顶面）</summary>
+        void SetFacePickMode(bool enabled);
+        /// <summary>在视口坐标拾取一个面（选顶面模式）</summary>
+        bool TryPickFace(System.Windows.Input.MouseButtonEventArgs e, out AnyCAD.Foundation.TopoShape? face);
     }
 
     /// <summary>
@@ -50,8 +60,28 @@ namespace AnyCAM.Milling.ViewModels
             foreach (var tool in _session.Tools)
                 ToolOptions.Add(tool.Name);
             BuildInitialTree();
+            PublishWorkZeroState();
+            RefreshMachiningTopSummary();
             foreach (var root in TreeRoots)
                 HookVisibility(root);
+        }
+
+        [ObservableProperty]
+        private bool _isPickingTopFace;
+
+        [ObservableProperty]
+        private string _machiningTopSummary = "顶面（自动 · +Z 最高）";
+
+        public string PickTopFaceButtonLabel => IsPickingTopFace ? "取消选顶面" : "选顶面";
+
+        partial void OnIsPickingTopFaceChanged(bool value)
+        {
+            OnPropertyChanged(nameof(PickTopFaceButtonLabel));
+            _render.SetFacePickMode(value);
+            UpdatePartPickableInScene();
+            StatusMessage = value
+                ? "在视口中单击要作为加工顶的面 · Esc 取消"
+                : (_session.Part != null ? MachiningTopSummary : StatusMessage);
         }
 
         // ==================== 树 ====================
@@ -87,14 +117,15 @@ namespace AnyCAM.Milling.ViewModels
                 tools.Children.Add(new TreeNode(TreeNodeKind.Tool, tool.Name, tool.Summary));
 
             var strategies = new TreeNode(TreeNodeKind.Group, "加工策略");
-            // 粗加工：顶面清面 + 方槽开粗
             AddOperationRow(strategies, "面铣");
-            AddOperationRow(strategies, "2D挖槽");
-            // 开孔：四角 φ10 盲孔啄钻（属粗加工，先于精修，避免精修完的壁被翻毛刺）
-            AddOperationRow(strategies, "钻孔");
-            // 精加工：外形贯通精修 + 槽壁分层精修，两特征互不重复
+            _session.RebuildPocketOperationsFromPart();
+            SyncPocketOperationsInTree(strategies);
+            _session.RebuildDrillOperationsFromPart();
+            SyncDrillOperationsInTree(strategies);
             AddOperationRow(strategies, "轮廓");
-            AddOperationRow(strategies, "槽壁精加工");
+            _session.RebuildSlotWallOperationsFromPart();
+            SyncSlotWallOperationsInTree(strategies);
+            RefreshToolOptions();
 
             TreeRoots.Add(model);
             TreeRoots.Add(coords);
@@ -116,14 +147,28 @@ namespace AnyCAM.Milling.ViewModels
         private TreeNode AddOperationRow(TreeNode parent, string strategy)
         {
             var entry = _session.AddOperation(strategy);
-            var node = new TreeNode(TreeNodeKind.Operation, entry.Name, StrategyMeta(strategy))
+            return AddOperationRow(parent, entry);
+        }
+
+        private TreeNode AddOperationRow(TreeNode parent, OperationEntry entry)
+        {
+            var meta = OperationStrategyMeta(entry);
+            var node = new TreeNode(TreeNodeKind.Operation, entry.Name, meta)
             {
                 Entry = entry,
-                StrategyMeta = StrategyMeta(strategy)
+                StrategyMeta = meta,
             };
             parent.Children.Add(node);
             return node;
         }
+
+        private string OperationStrategyMeta(OperationEntry entry) => entry.Strategy switch
+        {
+            "钻孔" => DrillStrategyMeta(entry),
+            "2D挖槽" => PocketSlotStrategyMeta(entry, "环切"),
+            "槽壁精加工" => PocketSlotStrategyMeta(entry, "分层"),
+            _ => StrategyMeta(entry.Strategy),
+        };
 
         private static string StrategyMeta(string strategy) => strategy switch
         {
@@ -131,9 +176,145 @@ namespace AnyCAM.Milling.ViewModels
             "2D挖槽" => "型腔 · 环切",
             "轮廓" => "外形 · 贯通",
             "槽壁精加工" => "槽壁 · 分层",
-            "钻孔" => "四角 · 啄钻",
+            "钻孔" => "孔位 · 啄钻",
             _ => "精修 · 分层",
         };
+
+        private string DrillStrategyMeta(OperationEntry entry)
+        {
+            if (entry.DrillDiameterMm is not double d || entry.DrillHoleCount <= 0)
+                return "孔位 · 啄钻";
+
+            var group = _session.HoleGroups.FirstOrDefault(g => Math.Abs(g.DiameterMm - d) < 0.08);
+            var title = group?.DrillTitle ?? $"φ{d:F0}";
+            var kind = string.IsNullOrWhiteSpace(group?.KindSummary)
+                ? "竖孔"
+                : group.KindSummary;
+            return $"{title} · {entry.DrillHoleCount} 孔 · {kind} · 啄钻";
+        }
+
+        private static string PocketSlotStrategyMeta(OperationEntry entry, string modeLabel) =>
+            entry.PocketSlotCount > 0
+            && entry.PocketLengthMm is double l
+            && entry.PocketWidthMm is double w
+            && entry.PocketDepthMm is double d
+                ? $"L{l:F0}×W{w:F0}×深{d:F0} · {entry.PocketSlotCount} 处 · {modeLabel}"
+                : entry.Strategy switch
+                {
+                    "槽壁精加工" => "槽壁 · 分层",
+                    _ => "型腔 · 环切",
+                };
+
+        private void RefreshToolOptions()
+        {
+            ToolOptions.Clear();
+            foreach (var tool in _session.Tools)
+                ToolOptions.Add(tool.Name);
+        }
+
+        /// <summary>按槽规格重建 2D 挖槽 OP 后，刷新树上节点（紧接在面铣之后）。</summary>
+        private void SyncPocketOperationsInTree(TreeNode? strategiesGroup = null)
+        {
+            strategiesGroup ??= TreeRoots.FirstOrDefault(r =>
+                r.Kind == TreeNodeKind.Group && r.Title == "加工策略");
+            if (strategiesGroup == null)
+                return;
+
+            for (var i = strategiesGroup.Children.Count - 1; i >= 0; i--)
+            {
+                var child = strategiesGroup.Children[i];
+                if (child.Entry?.Strategy != "2D挖槽")
+                    continue;
+
+                DetachOperationFromViewport(child.Entry);
+                _visibilityNodes.Remove(child);
+                strategiesGroup.Children.RemoveAt(i);
+            }
+
+            var insertAt = strategiesGroup.Children.ToList()
+                .FindIndex(c => c.Entry?.Strategy == "面铣");
+            insertAt = insertAt >= 0 ? insertAt + 1 : 0;
+
+            foreach (var entry in _session.Operations.Where(o => o.Strategy == "2D挖槽"))
+            {
+                var node = AddOperationRowAt(strategiesGroup, entry, insertAt++);
+                HookVisibility(node);
+            }
+        }
+
+        /// <summary>与 2D 挖槽同规格分组，刷新槽壁精加工节点（紧接在轮廓之后）。</summary>
+        private void SyncSlotWallOperationsInTree(TreeNode? strategiesGroup = null)
+        {
+            strategiesGroup ??= TreeRoots.FirstOrDefault(r =>
+                r.Kind == TreeNodeKind.Group && r.Title == "加工策略");
+            if (strategiesGroup == null)
+                return;
+
+            for (var i = strategiesGroup.Children.Count - 1; i >= 0; i--)
+            {
+                var child = strategiesGroup.Children[i];
+                if (child.Entry?.Strategy != "槽壁精加工")
+                    continue;
+
+                DetachOperationFromViewport(child.Entry);
+                _visibilityNodes.Remove(child);
+                strategiesGroup.Children.RemoveAt(i);
+            }
+
+            var insertAt = strategiesGroup.Children.ToList()
+                .FindIndex(c => c.Entry?.Strategy == "轮廓");
+            insertAt = insertAt >= 0 ? insertAt + 1 : strategiesGroup.Children.Count;
+
+            foreach (var entry in _session.Operations.Where(o => o.Strategy == "槽壁精加工"))
+            {
+                var node = AddOperationRowAt(strategiesGroup, entry, insertAt++);
+                HookVisibility(node);
+            }
+        }
+
+        /// <summary>引擎已按孔径重建钻孔 OP 后，刷新树上对应节点（插在挖槽与轮廓之间）。</summary>
+        private void SyncDrillOperationsInTree(TreeNode? strategiesGroup = null)
+        {
+            strategiesGroup ??= TreeRoots.FirstOrDefault(r =>
+                r.Kind == TreeNodeKind.Group && r.Title == "加工策略");
+            if (strategiesGroup == null)
+                return;
+
+            for (var i = strategiesGroup.Children.Count - 1; i >= 0; i--)
+            {
+                var child = strategiesGroup.Children[i];
+                if (child.Entry?.Strategy != "钻孔")
+                    continue;
+
+                DetachOperationFromViewport(child.Entry);
+                _visibilityNodes.Remove(child);
+                strategiesGroup.Children.RemoveAt(i);
+            }
+
+            var insertAt = strategiesGroup.Children.ToList()
+                .FindIndex(c => c.Entry?.Strategy is "轮廓" or "槽壁精加工");
+            if (insertAt < 0)
+                insertAt = strategiesGroup.Children.Count;
+
+            foreach (var entry in _session.Operations.Where(o => o.Strategy == "钻孔"))
+            {
+                var node = AddOperationRowAt(strategiesGroup, entry, insertAt++);
+                HookVisibility(node);
+            }
+        }
+
+        private TreeNode AddOperationRowAt(TreeNode parent, OperationEntry entry, int index)
+        {
+            var meta = OperationStrategyMeta(entry);
+            var node = new TreeNode(TreeNodeKind.Operation, entry.Name, meta)
+            {
+                Entry = entry,
+                StrategyMeta = meta,
+            };
+            index = Math.Clamp(index, 0, parent.Children.Count);
+            parent.Children.Insert(index, node);
+            return node;
+        }
 
         /// <summary>「新建策略」按顺序补进的策略；五种策略轮着来</summary>
         private static readonly string[] StrategyPool = { "轮廓", "槽壁精加工", "面铣", "2D挖槽", "钻孔" };
@@ -160,6 +341,384 @@ namespace AnyCAM.Milling.ViewModels
             StatusMessage = "添加刀具：功能暂未实现";
         }
 
+        [RelayCommand]
+        private void ApplyWorkZeroPreset()
+        {
+            if (WorkZeroPresetIndex < 0 || WorkZeroPresetIndex >= WorkZeroPresetLabels.Length)
+                return;
+
+            var preset = (WorkZeroPreset)WorkZeroPresetIndex;
+            _session.SetWorkZeroPreset(preset);
+            PublishWorkZeroState();
+            StatusMessage = $"已设零点：{_session.WorkZero.Describe()}";
+        }
+
+        [RelayCommand]
+        private void ApplyWorkZeroOrigin()
+        {
+            _session.SetWorkZeroOrigin(WorkOriginX, WorkOriginY, WorkOriginZ);
+            PublishWorkZeroState();
+            StatusMessage = $"已设自定义零点：{_session.WorkZero.Describe()}";
+        }
+
+        private void SyncWorkZeroFromSession()
+        {
+            var w = _session.WorkZero;
+            WorkOriginX = w.OriginX;
+            WorkOriginY = w.OriginY;
+            WorkOriginZ = w.OriginZ;
+            WorkZeroPresetIndex = w.Preset == WorkZeroPreset.Custom
+                ? 0
+                : Math.Clamp((int)w.Preset, 0, WorkZeroPresetLabels.Length - 1);
+        }
+
+        private void PublishWorkZeroState()
+        {
+            SyncWorkZeroFromSession();
+            var w = _session.WorkZero;
+            var presetText = w.Preset == WorkZeroPreset.Custom
+                ? "自定义"
+                : _session.WorkZero.PresetLabel(w.Preset);
+            WorkZeroSummary = $"MCS1 · {presetText} · {w.Describe()}";
+
+            var coords = TreeRoots.FirstOrDefault(r => r.Kind == TreeNodeKind.Group && r.Title == "坐标系");
+            var mcs = coords?.Children.FirstOrDefault(c => c.Kind == TreeNodeKind.Coordinate);
+            if (mcs != null)
+                mcs.Meta = w.Describe();
+        }
+
+        [RelayCommand]
+        private void ImportModel()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "导入零件",
+                Filter = "STEP (*.stp;*.step)|*.stp;*.step|CAD (*.brep;*.stl;*.igs;*.iges)|*.brep;*.stl;*.igs;*.iges|所有文件 (*.*)|*.*",
+            };
+
+            if (dialog.ShowDialog() != true)
+                return;
+
+            try
+            {
+                StatusMessage = "正在读取模型…";
+                var fileName = dialog.FileName;
+                var shape = PartIO.Open(fileName);
+                if (shape == null)
+                {
+                    StatusMessage = "无法打开模型：" + IOPath.GetFileName(fileName);
+                    return;
+                }
+
+                var bounds = shape.GetBBox();
+                if (bounds.IsVoid())
+                {
+                    StatusMessage = "模型无有效几何：" + IOPath.GetFileName(fileName);
+                    return;
+                }
+
+                _session.LoadPart(shape);
+                PublishWorkZeroState();
+                UpdateModelTreeMetadata(IOPath.GetFileName(fileName));
+                ClearToolpathDisplay();
+                RefreshMachiningTopSummary();
+                ReloadPartInViewport();
+                SyncPanelFromSelection();
+                StatusMessage = $"已导入 {IOPath.GetFileName(fileName)} · {DescribePartBounds()} · 正在分析孔位…";
+
+                // 孔位分组 / 默认深度重绑较耗时，放到后台优先级避免长时间占满 UI
+                var dispatcher = System.Windows.Application.Current.Dispatcher;
+                dispatcher.BeginInvoke(() =>
+                {
+                    try
+                    {
+                        _session.RebindAfterPartChanged();
+                        _session.RebuildPocketOperationsFromPart();
+                        SyncPocketOperationsInTree();
+                        _session.RebuildDrillOperationsFromPart();
+                        SyncDrillOperationsInTree();
+                        _session.RebuildSlotWallOperationsFromPart();
+                        SyncSlotWallOperationsInTree();
+                        RefreshToolOptions();
+                        MarkAllOperationsDirty();
+                        SyncPanelFromSelection();
+                        RefreshStrategyHighlight();
+                        var holes = _session.HoleGroups.Count;
+                        var pockets = _session.PocketGroups.Count;
+                        StatusMessage = pockets > 0 || holes > 0
+                            ? $"已导入 · {DescribePartBounds()} · {pockets} 类挖槽/槽壁 · {holes} 种钻孔"
+                            : $"已导入 · {DescribePartBounds()}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusMessage = "孔位分析失败：" + ex.Message;
+                    }
+                }, DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "导入失败：" + ex.Message;
+            }
+        }
+
+        private void UpdateModelTreeMetadata(string fileName)
+        {
+            var modelGroup = TreeRoots.FirstOrDefault(r => r.Kind == TreeNodeKind.Group && r.Title == "模型");
+            if (modelGroup == null)
+                return;
+
+            foreach (var child in modelGroup.Children)
+            {
+                if (child.Kind == TreeNodeKind.Part)
+                {
+                    child.Title = IOPath.GetFileNameWithoutExtension(fileName);
+                    child.Meta = DescribePartBounds();
+                }
+                else if (child.Kind == TreeNodeKind.Stock)
+                {
+                    child.Meta = DescribeStock();
+                }
+            }
+        }
+
+        private string DescribePartBounds()
+        {
+            var part = _session.Part;
+            if (part == null)
+                return "未加载";
+
+            var bounds = part.GetBBox();
+            if (bounds.IsVoid())
+                return "无包围盒";
+
+            var sx = bounds.CornerMax().X() - bounds.CornerMin().X();
+            var sy = bounds.CornerMax().Y() - bounds.CornerMin().Y();
+            var sz = bounds.CornerMax().Z() - bounds.CornerMin().Z();
+            return $"{sx:F0} × {sy:F0} × {sz:F0} mm";
+        }
+
+        private void ClearToolpathDisplay()
+        {
+            if (_render.IsReady)
+            {
+                foreach (var group in _pathGroups.Values)
+                    _render.RemoveSceneNode(group);
+            }
+
+            _pathGroups.Clear();
+        }
+
+        private void MarkAllOperationsDirty()
+        {
+            PruneStaleOperationNodes();
+
+            foreach (var node in _visibilityNodes)
+            {
+                if (node.Kind != TreeNodeKind.Operation || node.Entry == null)
+                    continue;
+
+                if (!_session.Operations.Contains(node.Entry))
+                    continue;
+
+                node.Entry.MarkDirty();
+                node.RefreshStatus();
+            }
+
+            RefreshPanelHeader();
+        }
+
+        private void PruneStaleOperationNodes()
+        {
+            for (var i = _visibilityNodes.Count - 1; i >= 0; i--)
+            {
+                var node = _visibilityNodes[i];
+                if (node.Kind != TreeNodeKind.Operation)
+                    continue;
+
+                if (node.Entry == null || !_session.Operations.Contains(node.Entry))
+                    _visibilityNodes.RemoveAt(i);
+            }
+
+            foreach (var stale in _pathGroups.Keys.Where(e => !_session.Operations.Contains(e)).ToList())
+                DetachOperationFromViewport(stale);
+        }
+
+        private void DetachOperationFromViewport(OperationEntry? entry)
+        {
+            if (entry == null)
+                return;
+
+            if (_pathGroups.Remove(entry, out var group) && _render.IsReady)
+            {
+                try
+                {
+                    group.Clear();
+                    _render.RemoveSceneNode(group);
+                }
+                catch
+                {
+                    // 场景节点可能已被 ClearAll 摘掉
+                }
+            }
+        }
+
+        private void ReloadPartInViewport()
+        {
+            if (!_render.IsReady || _render.View?.Scene == null)
+            {
+                _pendingViewportReload = true;
+                return;
+            }
+
+            _pendingViewportReload = false;
+            ClearStrategyHighlight();
+
+            if (_partNode != null)
+            {
+                _render.RemoveSceneNode(_partNode);
+                _partNode = null;
+            }
+
+            if (_stockNode != null)
+            {
+                _render.RemoveSceneNode(_stockNode);
+                _stockNode = null;
+            }
+
+            _render.SetBackgroundColor(ViewerBackground);
+
+            _partNode = _session.ShowPart(_render.View, IsPickingTopFace);
+            _stockNode = _session.ShowStock(_render.View);
+
+            if (_partNode == null)
+            {
+                StatusMessage = "模型已载入，但无法生成显示节点（几何可能为空）";
+                return;
+            }
+
+            ApplyNodeVisibility();
+            _render.SetFacePickMode(IsPickingTopFace);
+            _render.FitViewDeferred();
+            RefreshStrategyHighlight();
+        }
+
+        private void UpdatePartPickableInScene()
+        {
+            _partNode?.SetPickable(IsPickingTopFace);
+        }
+
+        private void RefreshMachiningTopSummary()
+        {
+            MachiningTopSummary = _session.MachiningTopSummary;
+        }
+
+        [RelayCommand]
+        private void TogglePickTopFace()
+        {
+            if (_session.Part == null)
+            {
+                StatusMessage = "请先导入或加载零件";
+                return;
+            }
+
+            IsPickingTopFace = !IsPickingTopFace;
+        }
+
+        /// <summary>视口左键拾取顶面（由 MainWindow 调用）</summary>
+        public void CancelPickTopFace()
+        {
+            if (IsPickingTopFace)
+                IsPickingTopFace = false;
+        }
+
+        public bool TryApplyPickedTopFace(MouseButtonEventArgs e)
+        {
+            if (!IsPickingTopFace || !_render.TryPickFace(e, out var face) || face == null)
+                return false;
+
+            if (!_session.TryApplyMachiningTopFace(face, out var message))
+            {
+                StatusMessage = message;
+                return true;
+            }
+
+            IsPickingTopFace = false;
+            RefreshMachiningTopSummary();
+            PublishWorkZeroState();
+            ClearToolpathDisplay();
+            ReloadPartInViewport();
+            MarkAllOperationsDirty();
+
+            var dispatcher = System.Windows.Application.Current.Dispatcher;
+            dispatcher.BeginInvoke(() =>
+            {
+                try
+                {
+                    _session.RebindAfterPartChanged();
+                    _session.RebuildPocketOperationsFromPart();
+                    SyncPocketOperationsInTree();
+                    _session.RebuildDrillOperationsFromPart();
+                    SyncDrillOperationsInTree();
+                    _session.RebuildSlotWallOperationsFromPart();
+                    SyncSlotWallOperationsInTree();
+                    RefreshToolOptions();
+                    SyncPanelFromSelection();
+                    RefreshStrategyHighlight();
+                    StatusMessage = message + " · 请重新生成刀路";
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "顶面已设定，孔位分析失败：" + ex.Message;
+                }
+            }, DispatcherPriority.Background);
+
+            return true;
+        }
+
+        /// <summary>左侧选中加工策略时，在零件上显示对应加工面/孔位高亮。</summary>
+        private void RefreshStrategyHighlight()
+        {
+            var seq = ++_highlightSequence;
+            var entry = SelectedNode?.Kind == TreeNodeKind.Operation ? SelectedNode.Entry : null;
+
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                if (seq != _highlightSequence)
+                    return;
+
+                ClearStrategyHighlight();
+
+                if (!_render.IsReady || entry == null)
+                    return;
+
+                try
+                {
+                    var group = _session.BuildStrategyHighlight(entry);
+                    if (group.GetCount() == 0)
+                        return;
+
+                    _render.ShowSceneNode(group);
+                    _strategyHighlight = group;
+                    _render.RequestDraw(EnumUpdateFlags.Scene);
+                }
+                catch (Exception ex)
+                {
+                    StatusMessage = "加工区域高亮失败：" + ex.Message;
+                }
+            }, DispatcherPriority.Normal);
+        }
+
+        private void ClearStrategyHighlight()
+        {
+            if (_strategyHighlight == null)
+                return;
+
+            if (_render.IsReady)
+                _render.RemoveSceneNode(_strategyHighlight);
+
+            _strategyHighlight = null;
+        }
+
         partial void OnSelectedNodeChanged(TreeNode? value)
         {
             if (value == null)
@@ -173,6 +732,7 @@ namespace AnyCAM.Milling.ViewModels
 
             // 换工序就要换刀路：不重画的话视口会一直停在上一条工序的路径上
             ShowSelectedToolpath();
+            RefreshStrategyHighlight();
         }
 
         private static void ClearSelection(TreeNode node, TreeNode keep)
@@ -215,6 +775,33 @@ namespace AnyCAM.Milling.ViewModels
         /// <summary>面板正文随对象类型切换：只有工序行才显示加工参数四个标签页</summary>
         public bool PanelIsOperation => SelectedNode?.Kind == TreeNodeKind.Operation;
 
+        /// <summary>选中 MCS 行时显示零点编辑区</summary>
+        public bool PanelIsCoordinate => SelectedNode?.Kind == TreeNodeKind.Coordinate;
+
+        /// <summary>工序页「加工坐标系」与树上 MCS 副标题</summary>
+        [ObservableProperty]
+        private string _workZeroSummary = "MCS1 · 包围盒最小角";
+
+        [ObservableProperty]
+        private int _workZeroPresetIndex;
+
+        [ObservableProperty]
+        private double _workOriginX;
+
+        [ObservableProperty]
+        private double _workOriginY;
+
+        [ObservableProperty]
+        private double _workOriginZ;
+
+        public string[] WorkZeroPresetLabels { get; } =
+        {
+            "包围盒最小角 (最长边已对齐 +X，最小角约 0,0,0)",
+            "顶面中心",
+            "底面中心",
+            "包围盒几何中心",
+        };
+
         /// <summary>非工序对象的只读信息行；Label 为空表示整行说明（跨两列）</summary>
         public sealed record FieldItem(string Label, string Value)
         {
@@ -231,6 +818,7 @@ namespace AnyCAM.Milling.ViewModels
         private void RefreshPanelBody()
         {
             OnPropertyChanged(nameof(PanelIsOperation));
+            OnPropertyChanged(nameof(PanelIsCoordinate));
 
             PanelFields.Clear();
             PanelHint = string.Empty;
@@ -262,8 +850,9 @@ namespace AnyCAM.Milling.ViewModels
 
                 case TreeNodeKind.Coordinate:
                     PanelFields.Add(new FieldItem("名称", "MCS1"));
-                    PanelFields.Add(new FieldItem("对刀点", "工件上表面中心"));
-                    PanelHint = "默认加工坐标系随模型装载，暂不可编辑。";
+                    PanelFields.Add(new FieldItem("方向", "与零件坐标一致（Z 轴向上）"));
+                    SyncWorkZeroFromSession();
+                    PanelHint = "程序零点：后处理输出 NC 时，所有 X/Y/Z 会减去下面原点。改零点后请重新「生成刀路」并再导出 NC。";
                     break;
 
                 case TreeNodeKind.Group when node.Title == "加工策略":
@@ -472,7 +1061,7 @@ namespace AnyCAM.Milling.ViewModels
                 // 本工序的刀：刀具页签编辑的就是它
                 _session.SelectedTool = _session.GetTool(entry.ToolName);
                 SelectedToolName = entry.ToolName;
-                GeometrySummary = _session.DescribeGeometry(entry.Strategy);
+                GeometrySummary = _session.DescribeGeometry(entry, entry.Strategy);
 
                 var depths = op.GetDepthParamsRef();
                 StartDepth = depths.GetStartDepth();
@@ -520,38 +1109,67 @@ namespace AnyCAM.Milling.ViewModels
                 return;
             }
 
-            var ok = _session.Compute(entry, out var message);
-            SelectedNode?.RefreshStatus();
-            RefreshPanelHeader();
-            StatusMessage = message;
-
-            if (ok)
+            try
             {
-                RefreshStats();
-                RefreshToolpathGroup(entry);
+                var ok = _session.Compute(entry, out var message);
+                SelectedNode?.RefreshStatus();
+                RefreshPanelHeader();
+                StatusMessage = message;
+
+                if (ok)
+                {
+                    RefreshStats();
+                    RefreshToolpathGroup(entry);
+                }
+            }
+            catch (Exception ex)
+            {
+                entry.MarkFailed(ex.Message);
+                SelectedNode?.RefreshStatus();
+                StatusMessage = $"{entry.Name}：计算异常 — {ex.Message}";
             }
         }
 
         [RelayCommand]
         private void ComputeAll()
         {
-            var ok = _session.ComputeAll(out var message);
-
-            foreach (var root in TreeRoots)
-                RefreshStatusRecursive(root);
-
-            StatusMessage = string.IsNullOrEmpty(message) ? "没有待计算的策略" : message;
-
-            // 无论是否全部成功都要刷新：只要有工序算出来了，就得让它上屏。
-            // 挂在 ok 上会让部分失败时整批刀路都不显示，看起来像「只有第一道工序生效」。
-            RefreshStats();
-            RefreshPanelHeader();
-
-            // 只重建重算过的工序：其余组的缓存刀路原样保留
-            foreach (var opEntry in _session.Operations)
+            try
             {
-                if (opEntry.State == OperationState.Computed)
-                    RefreshToolpathGroup(opEntry);
+                SessionLog.Info("UI ComputeAll ⟳");
+                PruneStaleOperationNodes();
+
+                foreach (var entry in _session.Operations)
+                    entry.MarkDirty();
+
+                var ok = _session.ComputeAll(out var message);
+
+                foreach (var root in TreeRoots)
+                    RefreshStatusRecursive(root);
+
+                StatusMessage = string.IsNullOrEmpty(message) ? "没有待计算的策略" : message;
+
+                RefreshStats();
+                RefreshPanelHeader();
+
+                foreach (var opEntry in _session.Operations)
+                {
+                    if (opEntry.State != OperationState.Computed)
+                        continue;
+
+                    try
+                    {
+                        RefreshToolpathGroup(opEntry);
+                    }
+                    catch (Exception ex)
+                    {
+                        opEntry.MarkFailed(ex.Message);
+                        StatusMessage = $"{opEntry.Name} 刀路显示失败：{ex.Message}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "全部计算异常：" + ex.Message;
             }
         }
 
@@ -647,27 +1265,36 @@ namespace AnyCAM.Milling.ViewModels
 
         private BrepSceneNode? _partNode;
         private BrepSceneNode? _stockNode;
+        private GroupSceneNode? _strategyHighlight;
+        private int _highlightSequence;
+        private bool _pendingViewportReload;
 
         /// <summary>视口底色 #16212F，与画布同色</summary>
         private static readonly Vector4 ViewerBackground = new(0x16 / 255f, 0x21 / 255f, 0x2F / 255f, 1.0f);
 
         public void OnViewerReady()
         {
-            if (!_render.IsReady)
+            if (!_render.IsReady || _render.View?.Scene == null)
                 return;
 
             // ShowShape 内部已经执行过 AddNode，这里不能再 ShowSceneNode，
             // 否则同一节点进入场景两次（包围盒重复计入，ZoomToExtend 会算小距离）。
             _render.SetBackgroundColor(ViewerBackground);
 
-            _partNode = _session.ShowPart(_render.View);
+            _partNode = _session.ShowPart(_render.View, IsPickingTopFace);
             _stockNode = _session.ShowStock(_render.View);
+            _render.SetFacePickMode(IsPickingTopFace);
 
             _render.ZoomAll();
 
             // 显隐统一走行属性：视口就绪后按树上眼睛重放一遍（含已算工序的刀路组）
             ApplyNodeVisibility();
             StatusMessage = "三维视口已就绪";
+
+            if (_pendingViewportReload)
+                ReloadPartInViewport();
+            else
+                RefreshStrategyHighlight();
         }
 
         /// <summary>每条工序的刀路组，按工序缓存：眼睛开关只 SetVisible，不重建</summary>
@@ -815,6 +1442,7 @@ namespace AnyCAM.Milling.ViewModels
         public void Dispose()
         {
             _simFinishTimer?.Stop();
+            ClearStrategyHighlight();
             if (_render.IsReady)
                 StopSimulation();
             _simulator.Dispose();
@@ -830,12 +1458,16 @@ namespace AnyCAM.Milling.ViewModels
         /// <summary>右下角仿真入口图标：空闲 ▶，播放中 ■（此时点击=退出仿真）</summary>
         public string SimEntryIcon => IsSimulating ? "■" : "▶";
 
-        public string SimEntryToolTip => IsSimulating ? "退出仿真" : "开始仿真";
+        public string SimEntryToolTip => IsSimulating ? "退出仿真" : "开始仿真（需至少一道工序已计算）";
+
+        /// <summary>右下动作条上的仿真按钮文案</summary>
+        public string SimulationActionLabel => IsSimulating ? "退出仿真" : "开始仿真";
 
         partial void OnIsSimulatingChanged(bool value)
         {
             OnPropertyChanged(nameof(SimEntryIcon));
             OnPropertyChanged(nameof(SimEntryToolTip));
+            OnPropertyChanged(nameof(SimulationActionLabel));
         }
 
         /// <summary>仿真暂停中；浮层上的暂停键在 ‖/▶ 间切换</summary>
@@ -872,9 +1504,10 @@ namespace AnyCAM.Milling.ViewModels
         private int _simRateIndex = 4;
 
         /// <summary>播放倍率选项，与 SimRates 一一对应</summary>
-        public IReadOnlyList<string> SimRateOptions { get; } = new[] { "0.5×", "1×", "2×", "4×", "10×" };
+        public IReadOnlyList<string> SimRateOptions { get; } =
+            new[] { "0.5×", "1×", "2×", "4×", "10×", "25×", "50×", "100×" };
 
-        private static readonly double[] SimRates = { 0.5, 1.0, 2.0, 4.0, 10.0 };
+        private static readonly double[] SimRates = { 0.5, 1.0, 2.0, 4.0, 10.0, 25.0, 50.0, 100.0 };
 
         partial void OnSimRateIndexChanged(int value)
         {
@@ -914,7 +1547,7 @@ namespace AnyCAM.Milling.ViewModels
             {
                 IsSimulating = true;
                 IsSimPaused = false;
-                StatusMessage = "仿真已开始：刀具按刀位切削毛坯";
+                StatusMessage = "仿真已开始：视口正下方工具条可调倍率、暂停与退出";
                 SetSimRate();
                 StartSimFinishWatch();
             }

@@ -1,26 +1,63 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+
+
   <PropertyGroup>
+
     <OutputType>WinExe</OutputType>
+
     <TargetFramework>net8.0-windows</TargetFramework>
+
     <UseWPF>true</UseWPF>
+
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+
     <PlatformTarget>x64</PlatformTarget>
+
     <Nullable>enable</Nullable>
+
     <ImplicitUsings>enable</ImplicitUsings>
+
     <RootNamespace>AnyCAM.Milling</RootNamespace>
+
     <AssemblyName>AnyCAM.Milling</AssemblyName>
+
     <ApplicationManifest>app.manifest</ApplicationManifest>
+
     <ApplicationIcon>..\..\app.ico</ApplicationIcon>
+
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="AnyCAD.Rapid.NET" Version="2026.10.24.1110" />
-    <PackageReference Include="AnyCAD.Manufacturing.NET" Version="2026.10.24.1110" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-  </ItemGroup>
+
 
   <ItemGroup>
-    <Resource Include="..\..\app.ico" />
+
+    <PackageReference Include="AnyCAD.Rapid.NET" Version="2026.10.24.1110" />
+
+    <PackageReference Include="AnyCAD.Manufacturing.NET" Version="2026.10.24.1110" />
+
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+
   </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <Resource Include="..\..\app.ico" />
+
+  </ItemGroup>
+
+  <!-- 禁用 Window.D3D 插件，避免 WPF 误选 D3DGL relay（Intel 集显 wglDX 互通失败） -->
+  <ItemGroup>
+    <Content Include="Assets\anycad.d3d.graphics.plugins.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>runtimes\win-x64\native\anycad.d3d.graphics.plugins.json</TargetPath>
+    </Content>
+  </ItemGroup>
+
+
 
 </Project>
+
+

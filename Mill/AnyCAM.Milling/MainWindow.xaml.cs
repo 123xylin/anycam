@@ -1,48 +1,80 @@
-﻿using AnyCAD.Foundation;
+using AnyCAD.Foundation;
 using AnyCAD.WPF;
 using AnyCAM.Milling.ViewModels;
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace AnyCAM.Milling
 {
     /// <summary>
-    /// View 层：只保留渲染控件生命周期与指令式渲染桥接（<see cref="IRenderHost"/>），
-    /// 全部业务状态与命令都在 <see cref="MainWindowViewModel"/>。
+    /// WPF <see cref="RenderControl"/> + OpenGL/SDL 后端（本机勿开 EnableD3DWPF，见 App 启动注释）。
     /// </summary>
     public partial class MainWindow : Window, IRenderHost
     {
-        private readonly RenderControl _renderView;
+        private const int MaxBootstrapAttempts = 240;
+        private int _bootstrapAttempts;
         private readonly MainWindowViewModel _viewModel;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            _renderView = new RenderControl();
-            _renderView.ViewerReady += OnViewerReady;
-            ViewportHost.Children.Add(_renderView);
+            RenderView.Focusable = false;
+            RenderView.IsHitTestVisible = false;
+            WireRenderInputGuards(RenderView);
+            RenderView.PreviewMouseLeftButtonDown += RenderView_PreviewMouseLeftButtonDown;
 
             _viewModel = new MainWindowViewModel(this);
             DataContext = _viewModel;
 
             Loaded += (_, _) => _viewModel.SyncPanelFromSelection();
             SourceInitialized += (_, _) => EnableDarkTitleBar();
+
+            PreviewKeyUp += (_, e) =>
+            {
+                if (e.Key == Key.Escape && _viewModel.IsPickingTopFace)
+                {
+                    _viewModel.CancelPickTopFace();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (!CanAcceptRenderInput && IsEventFromViewport(e.OriginalSource as DependencyObject))
+                    e.Handled = true;
+            };
+
+            StateChanged += (_, _) =>
+            {
+                if (WindowState is WindowState.Maximized or WindowState.Normal)
+                    RenderView.ForceUpdate();
+            };
         }
 
-        // ==================== 系统标题栏深色 ====================
+        private void RenderView_ViewerReady()
+        {
+            Dispatcher.BeginInvoke(BootstrapViewport, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void WireRenderInputGuards(RenderControl view)
+        {
+            view.PreviewKeyDown += GuardRenderInput;
+            view.PreviewKeyUp += GuardRenderInput;
+            view.PreviewMouseDown += GuardRenderInput;
+            view.PreviewMouseUp += GuardRenderInput;
+            view.PreviewMouseMove += GuardRenderInput;
+            view.PreviewMouseWheel += GuardRenderInput;
+            view.AddHandler(UIElement.KeyUpEvent, new KeyEventHandler(GuardRenderInput), true);
+            view.AddHandler(UIElement.MouseUpEvent, new MouseButtonEventHandler(GuardRenderInput), true);
+            view.AddHandler(UIElement.MouseDownEvent, new MouseButtonEventHandler(GuardRenderInput), true);
+        }
 
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
-        /// <summary>
-        /// 把系统标题栏与界面 chrome 统一：DWMWA_USE_IMMERSIVE_DARK_MODE 保证图标深色化，
-        /// DWMWA_CAPTION_COLOR 直接把标题栏刷成 ChromeBrush（#101827），
-        /// Win10 2004+ 用属性 20/35，旧版本回退属性 19。
-        /// </summary>
         private void EnableDarkTitleBar()
         {
             var hwnd = new WindowInteropHelper(this).Handle;
@@ -53,41 +85,46 @@ namespace AnyCAM.Milling
                     break;
             }
 
-            // COLORREF = 0x00BBGGRR，ChromeBrush #101827 → R=0x10 G=0x18 B=0x27
             int captionColor = 0x00271810;
             DwmSetWindowAttribute(hwnd, 35, ref captionColor, sizeof(int));
         }
 
-        // ==================== IRenderHost ====================
-
         public bool IsReady { get; private set; }
 
-        public IRenderView View => _renderView;
+        private bool HasViewportSize =>
+            RenderView.ActualWidth > 1 && RenderView.ActualHeight > 1;
 
-        private bool CanRender => IsReady && _renderView != null;
+        private bool CanAcceptRenderInput =>
+            IsReady && RenderView.Viewer != null && HasViewportSize;
+
+        public IRenderView View => RenderView;
+
+        private bool CanRender => IsReady && RenderView != null;
 
         public void ClearAll()
         {
             if (CanRender)
-                _renderView.ClearAll();
+                RenderView.ClearAll();
         }
 
         public void ShowSceneNode(SceneNode node)
         {
             if (CanRender)
-                _renderView.ShowSceneNode(node);
+                RenderView.ShowSceneNode(node);
         }
 
         public void RemoveSceneNode(SceneNode node)
         {
-            if (CanRender && node != null)
-                _renderView.Scene.RemoveNode(node);
+            if (!CanRender || node == null)
+                return;
+
+            RenderView.RemoveSceneNode(node.GetUuid());
         }
 
         public void RequestDraw(EnumUpdateFlags flags)
         {
             if (CanRender)
-                _renderView.RequestDraw(flags);
+                RenderView.RequestDraw(flags);
         }
 
         public void ZoomAll()
@@ -95,54 +132,129 @@ namespace AnyCAM.Milling
             if (!CanRender)
                 return;
 
-            // 先切等轴测视角再看全部：ZoomToExtend 只按包围盒算距离，不修正视线方向，
-            // 若相机正在正上方俯视，up=(0,1,0) 与视线平行会得到退化视图。
-            _renderView.SetStandardView(EnumStandardView.View3D, false);
-            // ratio 是包围盒留白系数：默认 1.1 会让模型顶到画面边缘，取大一些留出边距。
-            _renderView.ZoomAll(2.2f);
+            RenderView.SetStandardView(EnumStandardView.View3D, false);
+            RenderView.ZoomAll(2.2f);
+            RenderView.ForceUpdate();
         }
 
         public void SetStandardView()
         {
             if (CanRender)
-                _renderView.SetStandardView(EnumStandardView.View3D, false);
+                RenderView.SetStandardView(EnumStandardView.View3D, false);
         }
 
         public void ShowCoordinateGrid(bool visible)
         {
             if (CanRender)
-                _renderView.ShowCoordinateGrid(visible);
+                RenderView.ShowCoordinateGrid(visible);
         }
 
         public void SetBackgroundColor(Vector4 color)
         {
-            if (CanRender)
-                _renderView.Viewer.SetBackgroundColor(color);
+            var viewer = RenderView.Viewer;
+            if (viewer != null)
+                viewer.SetBackgroundColor(color);
         }
 
-        // ==================== 事件 ====================
-
-        private void OnViewerReady()
+        public void FitViewDeferred()
         {
-            IsReady = true;
-            _viewModel.OnViewerReady();
-
-            // ViewerReady 可能在视口布局完成前就触发：此时 ActualWidth/Height 还是 0，
-            // 引擎按极小尺寸算出的 ZoomToExtend 会把模型放大到占满视口。
-            // 等布局稳定后再取一次景。
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (!CanRender)
                     return;
 
                 ZoomAll();
-                _renderView.RequestDraw(EnumUpdateFlags.Scene);
+                RenderView.RequestDraw(EnumUpdateFlags.Scene);
+            }), System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        public void SetFacePickMode(bool enabled)
+        {
+            if (!CanRender)
+                return;
+
+            RenderView.ClearPickFilters();
+            if (enabled)
+            {
+                RenderView.AddPickFilter(EnumShapeFilter.LeafNode);
+                RenderView.AddPickFilter(EnumShapeFilter.VertexEdgeFace);
+                RenderView.ViewContext?.PushCursor("cross");
+            }
+            else
+            {
+                RenderView.ViewContext?.PopCursor();
+            }
+
+            RenderView.RequestDraw(EnumUpdateFlags.Selection);
+        }
+
+        public bool TryPickFace(MouseButtonEventArgs e, out TopoShape? face)
+        {
+            face = null;
+            if (!CanAcceptRenderInput || RenderView.ViewContext == null)
+                return false;
+
+            var pos = RenderView.GetMousePosition(e);
+            var x = (int)Math.Round(pos.X);
+            var y = (int)Math.Round(pos.Y);
+
+            var ctx = RenderView.ViewContext;
+            var engine = SnapShapeEngine.Get(ctx);
+            if (engine == null)
+                return false;
+
+            var picked = engine.PickFace(ctx, x, y);
+            if (picked == null || picked.IsNull())
+                return false;
+
+            face = engine.ParseSubShape(ctx, picked);
+            return face != null;
+        }
+
+        private void RenderView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_viewModel.IsPickingTopFace)
+                return;
+
+            if (_viewModel.TryApplyPickedTopFace(e))
+                e.Handled = true;
+        }
+
+        private void BootstrapViewport()
+        {
+            if (++_bootstrapAttempts > MaxBootstrapAttempts)
+                return;
+
+            if (RenderView.Viewer == null || RenderView.Scene == null)
+            {
+                Dispatcher.BeginInvoke(BootstrapViewport, System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
+
+            if (!HasViewportSize)
+            {
+                Dispatcher.BeginInvoke(BootstrapViewport, System.Windows.Threading.DispatcherPriority.Loaded);
+                return;
+            }
+
+            IsReady = true;
+            RenderView.Focusable = true;
+            RenderView.IsHitTestVisible = true;
+            _viewModel.OnViewerReady();
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!CanRender)
+                    return;
+
+                ZoomAll();
+                RenderView.RequestDraw(EnumUpdateFlags.Scene);
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         private void CamTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            if (e.NewValue is TreeNode node)
+            if (e.NewValue is ViewModels.TreeNode node)
                 _viewModel.SelectedNode = node;
 
             _viewModel.SyncPanelFromSelection();
@@ -158,8 +270,29 @@ namespace AnyCAM.Milling
 
         private void StandardView_Click(object sender, RoutedEventArgs e) => SetStandardView();
 
+        private void GuardRenderInput(object sender, RoutedEventArgs e)
+        {
+            if (!CanAcceptRenderInput)
+                e.Handled = true;
+        }
+
+        private static bool IsEventFromViewport(DependencyObject? source)
+        {
+            while (source != null)
+            {
+                if (source is RenderControl)
+                    return true;
+                source = VisualTreeHelper.GetParent(source);
+            }
+
+            return false;
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            IsReady = false;
+            RenderView.Focusable = false;
+            RenderView.IsHitTestVisible = false;
             _viewModel.Dispose();
             base.OnClosed(e);
         }

@@ -10,14 +10,69 @@ namespace AnyCAM.Milling.Engine
     /// </summary>
     internal static class EngineProbe
     {
-        public static bool WantsProbe(string[] args)
+        public static bool WantsProbe(string[] args) => TryRunCli(args, out _);
+
+        /// <summary>CLI 自检：--probe 或 --open-step &lt;file&gt;</summary>
+        public static bool TryRunCli(string[] args, out int exitCode)
         {
-            foreach (var arg in args)
+            exitCode = 0;
+            for (var i = 0; i < args.Length; i++)
             {
-                if (string.Equals(arg, "--probe", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(args[i], "--probe", StringComparison.OrdinalIgnoreCase))
+                {
+                    Run();
                     return true;
+                }
+
+                if (string.Equals(args[i], "--open-step", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    exitCode = RunOpenStep(args[i + 1]) ? 0 : 1;
+                    return true;
+                }
+
+                if (string.Equals(args[i], "--analyze-holes", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    exitCode = RunAnalyzeHoles(args[i + 1]) ? 0 : 1;
+                    return true;
+                }
             }
+
             return false;
+        }
+
+        static bool RunOpenStep(string path)
+        {
+            GlobalInstance.EnableD3DWPF = false;
+            GlobalInstance.Initialize();
+            ExchangeInstance.Initialize();
+            var shape = PartIO.Open(path);
+            if (shape == null)
+            {
+                Console.WriteLine("open failed");
+                return false;
+            }
+
+            var box = shape.GetBBox();
+            Console.WriteLine($"ok bbox {box.CornerMin().X():F1},{box.CornerMin().Y():F1},{box.CornerMin().Z():F1} -> " +
+                              $"{box.CornerMax().X():F1},{box.CornerMax().Y():F1},{box.CornerMax().Z():F1}");
+            return !box.IsVoid();
+        }
+
+        static bool RunAnalyzeHoles(string path)
+        {
+            GlobalInstance.EnableD3DWPF = false;
+            GlobalInstance.Initialize();
+            ExchangeInstance.Initialize();
+            var shape = PartIO.Open(path);
+            if (shape == null)
+            {
+                Console.WriteLine("open failed");
+                return false;
+            }
+
+            var report = HoleRecognizer.Analyze(shape);
+            Console.WriteLine(report.ToSummaryText());
+            return report.Groups.Count > 0;
         }
 
         public static void Run()
@@ -31,6 +86,7 @@ namespace AnyCAM.Milling.Engine
 
             try
             {
+                GlobalInstance.EnableD3DWPF = false;
                 GlobalInstance.Initialize();
                 ExchangeInstance.Initialize();
 

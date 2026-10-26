@@ -1,4 +1,4 @@
-﻿<Window x:Class="AnyCAM.Milling.MainWindow"
+<Window x:Class="AnyCAM.Milling.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:anycad="clr-namespace:AnyCAD.WPF;assembly=AnyCAD.WPF.NET"
@@ -63,12 +63,22 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 导入模型：当前版本使用内置示例零件 -->
-                    <Button Grid.Row="1" Content="导入模型"
-                            Style="{StaticResource BaseButtonStyle}"
-                            HorizontalAlignment="Stretch" Margin="12,10,12,10"
-                            Background="{StaticResource ChromeSecondaryBrush}"
-                            IsEnabled="False" ToolTip="使用内置示例零件" />
+                    <StackPanel Grid.Row="1" Margin="12,10,12,10">
+                        <Button Content="导入模型"
+                                Style="{StaticResource BaseButtonStyle}"
+                                HorizontalAlignment="Stretch"
+                                Background="{StaticResource ChromeSecondaryBrush}"
+                                Command="{Binding ImportModelCommand}"
+                                ToolTip="打开 STEP / BREP / STL / IGES 零件（导入后需重新生成刀路）" />
+                        <Button Content="{Binding PickTopFaceButtonLabel}"
+                                Style="{StaticResource BaseButtonStyle}"
+                                HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                Command="{Binding TogglePickTopFaceCommand}"
+                                ToolTip="在视口中点选一个面作为加工顶面（面铣/挖槽基准）；Esc 取消" />
+                        <TextBlock Text="{Binding MachiningTopSummary}"
+                                   Foreground="{StaticResource MutedTextBrush}"
+                                   FontSize="10" Margin="2,6,2,0" TextWrapping="Wrap" />
+                    </StackPanel>
 
                     <TreeView Grid.Row="2" x:Name="CamTree"
                               ItemsSource="{Binding TreeRoots}"
@@ -244,79 +254,95 @@
                 视口本身就是一块底色，再加外框和留白只会把画面圈小；
                 只留 1px 左分隔线，与右侧面板的竖线对称，其余全部让给场景。
             -->
-            <Border Grid.Column="1" Background="{StaticResource ViewerBrush}"
-                    BorderBrush="{StaticResource BorderBrush}"
-                    BorderThickness="0,0,1,0">
-                <!--
-                    渲染控件必须直接铺在这个 Grid 里，且这个 Grid 就是它的父容器：
-                    外面再套一层 Border 会让 ContentControl 的宿主尺寸和视口尺寸脱钩，
-                    引擎按宿主算出的画布比边框小，刀路这类细线会被挤出可见区。
-                -->
-                <Grid x:Name="ViewportHost" ClipToBounds="True" />
-            </Border>
+            <!-- 视口列：上为 RenderControl，下为仿真条（避免原生 OpenGL 盖住 WPF 浮层） -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-            <Grid Grid.Column="1" ClipToBounds="True">
-                <!--
-                    场景对象浮层已移除：显隐职责由左树的行级眼睛承担
-                    （模型/毛坯/各条工序行），不再在视口里重复一份。
-                -->
+                <Grid Grid.Row="0" ClipToBounds="True" Background="{StaticResource ViewerBrush}">
+                    <anycad:RenderControl x:Name="RenderView"
+                                          HorizontalAlignment="Stretch"
+                                          VerticalAlignment="Stretch"
+                                          ViewerReady="RenderView_ViewerReady" />
 
-                <!-- 视图导航竖条：浮在三维场景上；仿真入口挂在最下面 -->
-                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                            Margin="0,0,12,12">
-                    <Button Content="⊹" Style="{StaticResource ViewportToolButtonStyle}"
-                            AutomationProperties.Name="适合窗口"
-                            ToolTip="适合窗口" Click="ZoomAll_Click" />
-                    <Button Content="▦" Style="{StaticResource ViewportToolButtonStyle}"
-                            AutomationProperties.Name="坐标网格"
-                            ToolTip="坐标网格" Click="ToggleGrid_Click" />
-                    <Button Content="◱" Style="{StaticResource ViewportToolButtonStyle}"
-                            AutomationProperties.Name="标准视图"
-                            ToolTip="标准视图" Click="StandardView_Click" />
-                    <Button Content="{Binding SimEntryIcon}"
-                            Style="{StaticResource ViewportToolButtonStyle}"
-                            AutomationProperties.Name="仿真"
-                            ToolTip="{Binding SimEntryToolTip}"
-                            Command="{Binding ToggleSimulationCommand}" />
-                </StackPanel>
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                Margin="0,0,12,12">
+                        <Button Content="⊹" Style="{StaticResource ViewportToolButtonStyle}"
+                                AutomationProperties.Name="适合窗口"
+                                ToolTip="适合窗口" Click="ZoomAll_Click" />
+                        <Button Content="▦" Style="{StaticResource ViewportToolButtonStyle}"
+                                AutomationProperties.Name="坐标网格"
+                                ToolTip="坐标网格" Click="ToggleGrid_Click" />
+                        <Button Content="◱" Style="{StaticResource ViewportToolButtonStyle}"
+                                AutomationProperties.Name="标准视图"
+                                ToolTip="标准视图" Click="StandardView_Click" />
+                        <Button Content="{Binding SimEntryIcon}"
+                                Style="{StaticResource ViewportToolButtonStyle}"
+                                AutomationProperties.Name="仿真"
+                                ToolTip="{Binding SimEntryToolTip}"
+                                Command="{Binding ToggleSimulationCommand}" />
+                    </StackPanel>
+                </Grid>
 
-                <!--
-                    仿真浮层：点右下角 ▶ 后从视图底部中间升起。
-                    倍率只影响播放速度不影响刀位；■ 退出后浮层收回。
-                -->
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                            Margin="0,0,0,12"
-                            Visibility="{Binding IsSimulating, Converter={StaticResource BoolToVisibility}}">
-                    <ComboBox Width="72" Height="36"
-                              Style="{StaticResource FieldComboStyle}"
-                              AutomationProperties.Name="仿真倍率"
-                              ToolTip="仿真速度"
-                              ItemsSource="{Binding SimRateOptions}"
-                              SelectedIndex="{Binding SimRateIndex}" />
-                    <Button Width="36" Height="36"
-                            Style="{StaticResource ViewportToolButtonStyle}"
-                            Margin="8,0,0,0"
-                            AutomationProperties.Name="仿真暂停"
-                            ToolTip="{Binding SimPauseToolTip}"
-                            Command="{Binding ToggleSimPauseCommand}">
-                        <TextBlock Text="{Binding SimPauseIcon}" />
-                    </Button>
-                    <Button Style="{StaticResource ViewportToolButtonStyle}"
-                            Margin="4,0,0,0"
-                            AutomationProperties.Name="重新播放"
-                            ToolTip="重新播放"
-                            Command="{Binding ReplaySimulationCommand}">
-                        <TextBlock Text="⟲" />
-                    </Button>
-                    <Button Style="{StaticResource ViewportToolButtonStyle}"
-                            Margin="4,0,0,0"
-                            AutomationProperties.Name="退出仿真"
-                            ToolTip="退出仿真"
-                            Command="{Binding ToggleSimulationCommand}">
-                        <TextBlock Text="■" />
-                    </Button>
-                </StackPanel>
+                <Border Grid.Row="1"
+                        Background="{StaticResource ChromeBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="12,8">
+                    <Grid HorizontalAlignment="Center">
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding IsSimulating, Converter={StaticResource InverseBoolToVisibility}}">
+                            <TextBlock Text="切削仿真"
+                                       Foreground="{StaticResource TextBrush}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Text="需至少一道工序已计算"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="11" VerticalAlignment="Center" Margin="0,0,14,0" />
+                            <Button Content="▶ 开始仿真"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    MinWidth="108" Height="36"
+                                    Command="{Binding ToggleSimulationCommand}"
+                                    ToolTip="按树上顺序播放已计算刀路（毛坯切削动画）" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding IsSimulating, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="仿真倍率"
+                                       Foreground="{StaticResource MutedTextBrush}"
+                                       FontSize="12" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <ComboBox Width="76" Height="36"
+                                      Style="{StaticResource FieldComboStyle}"
+                                      AutomationProperties.Name="仿真倍率"
+                                      ToolTip="仅影响播放快慢，不改变刀位"
+                                      ItemsSource="{Binding SimRateOptions}"
+                                      SelectedIndex="{Binding SimRateIndex}" />
+                            <Button Width="40" Height="36"
+                                    Style="{StaticResource ViewportToolButtonStyle}"
+                                    Margin="12,0,0,0"
+                                    AutomationProperties.Name="仿真暂停"
+                                    ToolTip="{Binding SimPauseToolTip}"
+                                    Command="{Binding ToggleSimPauseCommand}">
+                                <TextBlock Text="{Binding SimPauseIcon}" FontSize="14" />
+                            </Button>
+                            <Button Width="40" Height="36"
+                                    Style="{StaticResource ViewportToolButtonStyle}"
+                                    Margin="6,0,0,0"
+                                    AutomationProperties.Name="重新播放"
+                                    ToolTip="重新播放"
+                                    Command="{Binding ReplaySimulationCommand}">
+                                <TextBlock Text="⟲" FontSize="14" />
+                            </Button>
+                            <Button Content="退出仿真"
+                                    Style="{StaticResource BaseButtonStyle}"
+                                    MinWidth="88" Height="36"
+                                    Margin="12,0,0,0"
+                                    AutomationProperties.Name="退出仿真"
+                                    Command="{Binding ToggleSimulationCommand}" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
 
             <!-- ===== 右：参数面板 ===== -->
@@ -415,9 +441,11 @@
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Text="加工坐标系" Style="{StaticResource FieldLabelStyle}" />
                                                 <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="8,0">
-                                                    <TextBlock Text="MCS1 · 已对齐工件"
+                                                    <TextBlock Text="{Binding WorkZeroSummary}"
                                                                Foreground="{StaticResource TextBrush}"
-                                                               FontSize="12" VerticalAlignment="Center" />
+                                                               FontSize="11.5" VerticalAlignment="Center"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding WorkZeroSummary}" />
                                                 </Border>
                                             </Grid>
                                         </StackPanel>
@@ -889,6 +917,63 @@
                                   HorizontalScrollBarVisibility="Disabled"
                                   Visibility="{Binding PanelIsOperation, Converter={StaticResource InverseBoolToVisibility}}">
                         <StackPanel Margin="8,10,8,14">
+                            <StackPanel Visibility="{Binding PanelIsCoordinate, Converter={StaticResource BoolToVisibility}}"
+                                        Margin="0,0,0,12">
+                                <TextBlock Text="程序零点 (MCS)" Style="{StaticResource SectionTitleStyle}" Margin="0,0,0,10" />
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="68" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="预设" Style="{StaticResource FieldLabelStyle}" />
+                                    <ComboBox Grid.Column="1"
+                                              ItemsSource="{Binding WorkZeroPresetLabels}"
+                                              SelectedIndex="{Binding WorkZeroPresetIndex}"
+                                              Height="30" FontSize="11.5" />
+                                </Grid>
+                                <Button Content="应用预设"
+                                        Command="{Binding ApplyWorkZeroPresetCommand}"
+                                        Height="32" Margin="0,0,0,12"
+                                        HorizontalAlignment="Stretch" />
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="68" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="X" Style="{StaticResource FieldLabelStyle}" />
+                                    <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="4,0">
+                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                 Text="{Binding WorkOriginX, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                    </Border>
+                                </Grid>
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="68" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Y" Style="{StaticResource FieldLabelStyle}" />
+                                    <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="4,0">
+                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                 Text="{Binding WorkOriginY, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                    </Border>
+                                </Grid>
+                                <Grid Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="68" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Z" Style="{StaticResource FieldLabelStyle}" />
+                                    <Border Grid.Column="1" Style="{StaticResource FieldBoxStyle}" Padding="4,0">
+                                        <TextBox Style="{StaticResource FieldInputStyle}"
+                                                 Text="{Binding WorkOriginZ, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.###}}" />
+                                    </Border>
+                                </Grid>
+                                <Button Content="应用 X/Y/Z（自定义零点）"
+                                        Command="{Binding ApplyWorkZeroOriginCommand}"
+                                        Height="32" Margin="0,0,0,4"
+                                        HorizontalAlignment="Stretch" />
+                            </StackPanel>
+
                             <ItemsControl ItemsSource="{Binding PanelFields}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -930,10 +1015,7 @@
 
                     </Grid>
 
-                    <!--
-                        底部动作条：仿真控制已挪到视口（右下 ▶ 入口，仿真中左下浮层出速度/暂停/退出），
-                        这里只留全局状态与选中工序的计算入口。
-                    -->
+                    <!-- 底部动作条：开始仿真入口；播放中倍率/暂停等在视口正中浮条 -->
                     <Border Grid.Row="2" Background="{StaticResource ChromeBrush}"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
                             Padding="12,10">
@@ -941,10 +1023,18 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="{Binding StatusStats}"
                                        Style="{StaticResource CaptionStyle}" VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="生成刀路"
+                            <Button Grid.Column="1"
+                                    Content="开始仿真"
+                                    Style="{StaticResource BaseButtonStyle}"
+                                    MinWidth="88" Margin="0,0,8,0"
+                                    Command="{Binding ToggleSimulationCommand}"
+                                    ToolTip="在视口正中显示倍率与暂停；也可点视口右下角 ▶"
+                                    Visibility="{Binding IsSimulating, Converter={StaticResource InverseBoolToVisibility}}" />
+                            <Button Grid.Column="2" Content="生成刀路"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     MinWidth="92"
                                     Command="{Binding GenerateToolpathCommand}" />

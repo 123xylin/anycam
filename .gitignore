@@ -5,3 +5,5 @@ docs
 /Mill/Test/Temp
 /Mill/API-Rename-List.md
 /Mill/nuget.config
+/Mill/anycad.log
+**/anycam-app.log
